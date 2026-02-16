@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import { useChatHistory } from "@/hooks/useChatHistory";
+import { useChatHistory, ChatSession } from "@/hooks/useChatHistory";
+import { isToday, isYesterday, subDays, isAfter, startOfDay } from "date-fns";
 import SettingsDialog from "@/components/SettingsDialog";
 import {
   AlertDialog,
@@ -130,76 +131,102 @@ const DashboardLayout = () => {
         </nav>
 
         {/* Chat history */}
-        {chatHistory.sessions.length > 0 && (
-          <div className="mt-4 px-2 flex-1 overflow-y-auto">
-            <p className="text-[11px] font-medium text-sidebar-foreground/50 uppercase tracking-wider px-3 mb-1.5">
-              Your chats
-            </p>
-            <div className="space-y-0.5">
-              {chatHistory.sessions.map((session) => (
-                <div
-                  key={session.id}
-                  className={cn(
-                    "group flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] cursor-pointer transition-colors",
-                    chatHistory.activeId === session.id
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent"
-                  )}
-                >
-                  {editingId === session.id ? (
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      <input
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && confirmRename()}
-                        className="flex-1 min-w-0 bg-transparent text-[13px] outline-none border-b border-sidebar-foreground/30"
-                        autoFocus
-                      />
-                      <button onClick={confirmRename} className="p-0.5 hover:text-primary">
-                        <Check size={12} />
-                      </button>
-                      <button onClick={() => setEditingId(null)} className="p-0.5">
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => {
-                          chatHistory.setActiveId(session.id);
-                          navigate(`/chat/${session.id}`);
-                        }}
-                        className="flex-1 min-w-0 truncate text-left"
+        {(chatHistory.sessions || []).length > 0 && (() => {
+          const sessions = chatHistory.sessions;
+          const groups: { label: string; items: ChatSession[] }[] = [
+            { label: "Today", items: [] },
+            { label: "Yesterday", items: [] },
+            { label: "Previous 7 Days", items: [] },
+            { label: "Older", items: [] },
+          ];
+
+          const today = startOfDay(new Date());
+          const yesterday = startOfDay(subDays(new Date(), 1));
+          const sevenDaysAgo = startOfDay(subDays(new Date(), 7));
+
+          sessions.forEach((s) => {
+            const date = new Date(s.updatedAt || s.createdAt);
+            if (isToday(date)) groups[0].items.push(s);
+            else if (isYesterday(date)) groups[1].items.push(s);
+            else if (isAfter(date, sevenDaysAgo)) groups[2].items.push(s);
+            else groups[3].items.push(s);
+          });
+
+          return (
+            <div className="mt-4 px-2 flex-1 overflow-y-auto custom-scrollbar">
+              {groups.map((group) => group.items.length > 0 && (
+                <div key={group.label} className="mb-4 last:mb-0">
+                  <p className="text-[10px] font-semibold text-sidebar-foreground/30 uppercase tracking-[0.05em] px-3 mb-2">
+                    {group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {group.items.map((session) => (
+                      <div
+                        key={session.id}
+                        className={cn(
+                          "group flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] cursor-pointer transition-all duration-200",
+                          chatHistory.activeId === session.id
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        )}
                       >
-                        {session.title}
-                      </button>
-                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startRename(session.id, session.title);
-                          }}
-                          className="p-0.5 rounded hover:text-primary"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteTarget({ id: session.id, title: session.title });
-                          }}
-                          className="p-0.5 rounded hover:text-destructive"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        {editingId === session.id ? (
+                          <div className="flex items-center gap-1 flex-1 min-w-0">
+                            <input
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              onKeyDown={(e) => e.key === "Enter" && confirmRename()}
+                              className="flex-1 min-w-0 bg-transparent text-[13px] outline-none border-b border-sidebar-foreground/30"
+                              autoFocus
+                            />
+                            <button onClick={confirmRename} className="p-0.5 hover:text-primary">
+                              <Check size={12} />
+                            </button>
+                            <button onClick={() => setEditingId(null)} className="p-0.5">
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                chatHistory.setActiveId(session.id);
+                                navigate(`/chat/${session.id}`);
+                              }}
+                              className="flex-1 min-w-0 truncate text-left"
+                            >
+                              {session.title}
+                            </button>
+                            <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 animate-in fade-in duration-200">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startRename(session.id, session.title);
+                                }}
+                                className="p-0.5 rounded hover:text-primary transition-colors"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteTarget({ id: session.id, title: session.title });
+                                }}
+                                className="p-0.5 rounded hover:text-destructive transition-colors"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
-                    </>
-                  )}
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Bottom: Settings */}
         <div className="p-3 border-t border-sidebar-border shrink-0">

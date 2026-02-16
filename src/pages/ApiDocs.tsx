@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { BookOpen, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useModels } from "@/hooks/useModels";
 
 interface ApiEndpoint {
   id: string;
@@ -202,6 +203,12 @@ const EndpointCard = ({ endpoint }: { endpoint: ApiEndpoint }) => {
 };
 
 const ApiDocs = () => {
+  const { models } = useModels();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedDisplayModel, setSelectedDisplayModel] = useState<string | null>(null);
+
+  const activeModel = models.find(m => m.id === selectedDisplayModel) || models[0];
+
   return (
     <div className="flex flex-col h-full">
       <header className="flex items-center h-14 px-6 border-b border-border shrink-0">
@@ -233,15 +240,50 @@ const ApiDocs = () => {
             ))}
           </div>
 
-          {/* Auth note */}
-          <div className="bg-accent/50 border border-primary/10 rounded-xl p-5 space-y-2">
-            <h3 className="text-sm font-medium text-accent-foreground">Available Models</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Use the <code className="text-xs bg-card px-1.5 py-0.5 rounded border border-border font-mono">/v1/models</code> endpoint
-              to fetch available models. Currently supported:
-              <code className="text-xs bg-card px-1.5 py-0.5 rounded border border-border font-mono ml-1">google/gemma-3-27b</code>,
-              <code className="text-xs bg-card px-1.5 py-0.5 rounded border border-border font-mono ml-1">qwen/qwen3-vl-30b</code>,
-              <code className="text-xs bg-card px-1.5 py-0.5 rounded border border-border font-mono ml-1">openai/gpt-oss-120b</code>.
+          <div className="bg-accent/50 border border-primary/10 rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-medium text-accent-foreground text-center">Available Models</h3>
+
+            <div className="flex justify-center">
+              <div className="relative w-full max-w-sm">
+                <button
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  className="w-full flex items-center justify-between gap-2 bg-card border border-border rounded-xl px-4 py-3 hover:border-primary/30 transition-all text-left shadow-sm"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">{activeModel?.name || "Select a model"}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono truncate">{activeModel?.id}</span>
+                  </div>
+                  <ChevronDown size={16} className={cn("text-muted-foreground transition-transform", showDropdown && "rotate-180")} />
+                </button>
+
+                {showDropdown && models.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto animate-fade-in translate-y-0">
+                    {models.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedDisplayModel(m.id);
+                          setShowDropdown(false);
+                        }}
+                        className={cn(
+                          "w-full text-left px-4 py-3 hover:bg-secondary transition-colors border-b border-border last:border-0",
+                          m.id === (selectedDisplayModel || models[0]?.id) ? "bg-secondary/50" : ""
+                        )}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-foreground">{m.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{m.id}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground text-center leading-relaxed max-w-sm mx-auto">
+              Use the <code className="text-[10px] bg-card px-1.5 py-0.5 rounded border border-border font-mono mx-0.5 text-foreground">/v1/models</code> endpoint
+              to fetch the current list of available models.
             </p>
           </div>
         </div>

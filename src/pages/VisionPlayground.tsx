@@ -1,8 +1,9 @@
 
 import React, { useState, useRef } from "react";
-import { Upload, ArrowUp, X, Copy, Check, ChevronDown } from "lucide-react";
+import { Upload, ArrowUp, X, Copy, Check, ChevronDown, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useModels } from "@/hooks/useModels";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { apiUrl } from "@/lib/api";
 
 const VisionPlayground = () => {
@@ -17,6 +18,18 @@ const VisionPlayground = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { models, selectedModel, setSelectedModel, loading: modelsLoading } = useModels();
+  const visionModels = models.filter(m => m.vision);
+
+  const { isListening, toggleVoice } = useVoiceInput((transcript) => {
+    setPrompt(prev => prev + (prev ? " " : "") + transcript);
+  });
+
+  // Set initial vision model if not set
+  React.useEffect(() => {
+    if (!modelsLoading && visionModels.length > 0 && !visionModels.find(m => m.id === selectedModel)) {
+      setSelectedModel(visionModels[0].id);
+    }
+  }, [modelsLoading, visionModels, selectedModel, setSelectedModel]);
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -83,13 +96,48 @@ const VisionPlayground = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[640px] mx-auto px-4 py-8 space-y-6">
+    <div className="flex flex-col h-full items-center">
+      {/* Persistent sticky model selector header */}
+      <div className="w-full shrink-0 flex justify-center py-4 border-b border-border/50 bg-background/20 backdrop-blur-xl sticky top-0 z-50">
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowModelDropdown(!showModelDropdown)}
+            className="flex items-center gap-1.5 text-[14px] font-medium text-foreground hover:bg-secondary/80 px-3 py-1.5 rounded-xl border border-border transition-colors backdrop-blur-sm bg-background/50"
+          >
+            <span>
+              {modelsLoading ? "Loading..." : visionModels.find(m => m.id === selectedModel)?.name || selectedModel || "Select model"}
+            </span>
+            <ChevronDown size={14} className={cn("transition-transform opacity-60", showModelDropdown && "rotate-180")} />
+          </button>
+          {showModelDropdown && visionModels.length > 0 && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 max-h-60 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95">
+              {visionModels.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setSelectedModel(m.id);
+                    setShowModelDropdown(false);
+                  }}
+                  className={cn(
+                    "w-full text-left px-4 py-2.5 text-[13px] hover:bg-secondary transition-colors truncate",
+                    m.id === selectedModel ? "text-primary font-medium" : "text-foreground"
+                  )}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 w-full max-w-[640px] px-4 py-8 overflow-y-auto min-h-0 scroll-smooth">
+        <div className="space-y-6">
+
           {/* Title */}
-          <div>
-            <h1 className="font-display text-xl text-foreground">Vision / Base64</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+          <div className="text-center">
+            <h1 className="font-display text-2xl text-foreground">Vision / Base64</h1>
+            <p className="text-sm text-muted-foreground mt-2">
               Upload an image and describe what you'd like the model to analyze.
             </p>
           </div>
@@ -129,60 +177,42 @@ const VisionPlayground = () => {
             )}
           </div>
 
-          {/* Prompt */}
-          <div className="relative bg-card border border-border rounded-xl focus-within:border-ring/40 transition-colors">
-            {/* Model selector */}
-            <div className="flex items-center px-3 pt-2.5 pb-0">
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setShowModelDropdown(!showModelDropdown)}
-                  className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-secondary transition-colors"
-                >
-                  <span className="font-medium truncate max-w-[180px]">
-                    {modelsLoading ? "Loading..." : selectedModel || "Select model"}
-                  </span>
-                  <ChevronDown size={12} className={cn("transition-transform", showModelDropdown && "rotate-180")} />
-                </button>
-                {showModelDropdown && models.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-1 w-64 max-h-60 overflow-y-auto bg-popover border border-border rounded-lg shadow-lg z-50">
-                    {models.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => {
-                          setSelectedModel(m.id);
-                          setShowModelDropdown(false);
-                        }}
-                        className={cn(
-                          "w-full text-left px-3 py-2 text-[13px] hover:bg-secondary transition-colors truncate",
-                          m.id === selectedModel ? "text-primary font-medium" : "text-foreground"
-                        )}
-                      >
-                        {m.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="relative bg-card border border-border rounded-xl focus-within:border-ring/40 transition-all flex items-end shadow-sm">
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="What should the model look for?"
               rows={2}
-              className="w-full resize-none bg-transparent px-4 py-3 pr-10 text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="w-full resize-none bg-transparent px-4 py-[14px] text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[60px]"
             />
-            <button
-              onClick={handleSend}
-              disabled={!image || !prompt.trim() || isLoading}
-              className={cn(
-                "absolute right-3 bottom-3 transition-all",
-                image && prompt.trim() && !isLoading
-                  ? "text-primary hover:text-primary/80"
-                  : "text-muted-foreground/20"
-              )}
-            >
-              <ArrowUp size={20} />
-            </button>
+            <div className="flex items-center gap-1.5 pr-3 pb-2">
+              {/* Voice input */}
+              <button
+                onClick={toggleVoice}
+                className={cn(
+                  "p-2 rounded-lg transition-all",
+                  isListening
+                    ? "text-destructive animate-pulse bg-destructive/10"
+                    : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary"
+                )}
+                title={isListening ? "Stop listening" : "Voice input"}
+              >
+                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+              </button>
+              {/* Send */}
+              <button
+                onClick={handleSend}
+                disabled={!image || !prompt.trim() || isLoading}
+                className={cn(
+                  "p-2 transition-all duration-300",
+                  prompt.trim()
+                    ? "text-primary scale-110 drop-shadow-[0_0_10px_hsl(var(--primary)/0.6)]"
+                    : "text-muted-foreground/20 scale-100"
+                )}
+              >
+                <ArrowUp size={22} strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
 
           {/* Loading */}
