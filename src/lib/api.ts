@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = import.meta.env.DEV ? "/api" : "https://ail.buyhatke.com";
+const DEFAULT_BASE_URL = "/api";
 
 export const API_BASE_URL: string = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? DEFAULT_BASE_URL;
 
