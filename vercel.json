@@ -2,7 +2,7 @@
     "rewrites": [
         {
             "source": "/api/:path*",
-            "destination": "/api/proxy"
+            "destination": "https://ail.buyhatke.com/:path*"
         },
         {
             "source": "/(.*)",
