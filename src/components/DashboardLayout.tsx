@@ -1,9 +1,10 @@
 
 import React, { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
 import { useChatHistory, ChatSession } from "@/hooks/useChatHistory";
+import { useAuth } from "@/hooks/useAuth";
 import { isToday, isYesterday, subDays, isAfter, startOfDay } from "date-fns";
 import SettingsDialog from "@/components/SettingsDialog";
 import {
@@ -31,6 +32,7 @@ import {
   Settings,
   FileUp,
   Mic,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -42,7 +44,8 @@ const navItems = [
 ];
 
 const DashboardLayout = () => {
-  const [collapsed, setCollapsed] = useState(false);
+  // On mobile sidebar starts closed; on desktop it starts open
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
@@ -50,6 +53,14 @@ const DashboardLayout = () => {
   const { theme } = useTheme();
   const chatHistory = useChatHistory();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isChatRoute = location.pathname === "/" || location.pathname.startsWith("/chat/");
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/signin", { replace: true });
+  };
 
   const handleNewChat = () => {
     const id = chatHistory.createSession();
@@ -68,13 +79,32 @@ const DashboardLayout = () => {
     setEditingId(null);
   };
 
+  // Close sidebar when navigating on mobile
+  const closeSidebarOnMobile = () => {
+    if (window.innerWidth < 768) setCollapsed(true);
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      {/* Sidebar */}
+      {/* Mobile backdrop */}
+      {!collapsed && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setCollapsed(true)}
+        />
+      )}
+
+      {/* Sidebar — overlay drawer on mobile, inline on desktop */}
       <aside
         className={cn(
           "flex flex-col bg-sidebar shrink-0 transition-all duration-300 ease-in-out",
-          collapsed ? "w-0 overflow-hidden" : "w-[260px]"
+          // Mobile: fixed overlay, slide in/out
+          "fixed inset-y-0 left-0 z-50 w-[260px]",
+          "md:relative md:z-auto md:inset-auto",
+          // Mobile visibility via translate
+          collapsed ? "-translate-x-full md:translate-x-0" : "translate-x-0",
+          // Desktop: collapse via width
+          collapsed ? "md:w-0 md:overflow-hidden" : "md:w-[260px]"
         )}
       >
         {/* Top bar */}
@@ -97,28 +127,27 @@ const DashboardLayout = () => {
 
         {/* Nav links */}
         <nav className="px-2 space-y-0.5">
-          <NavLink
-            to="/"
-            end
+          <button
             onClick={() => {
               chatHistory.setActiveId(null);
+              navigate("/");
+              closeSidebarOnMobile();
             }}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent"
-              )
-            }
+            className={cn(
+              "flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] transition-colors",
+              isChatRoute
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent"
+            )}
           >
             <MessageSquare size={16} />
             <span>Chat</span>
-          </NavLink>
+          </button>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={closeSidebarOnMobile}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors",
@@ -196,6 +225,7 @@ const DashboardLayout = () => {
                               onClick={() => {
                                 chatHistory.setActiveId(session.id);
                                 navigate(`/chat/${session.id}`);
+                                closeSidebarOnMobile();
                               }}
                               className="flex-1 min-w-0 truncate text-left"
                             >
@@ -232,14 +262,26 @@ const DashboardLayout = () => {
           );
         })()}
 
-        {/* Bottom: Settings */}
-        <div className="p-3 border-t border-sidebar-border shrink-0">
+        {/* Bottom: user + Settings + Logout */}
+        <div className="p-3 border-t border-sidebar-border shrink-0 space-y-0.5">
+          {user && (
+            <p className="px-3 py-1 text-[11px] text-sidebar-foreground/40 truncate" title={user.username}>
+              {user.username}
+            </p>
+          )}
           <button
             onClick={() => setShowSettings(true)}
             className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
           >
             <Settings size={16} />
             <span>Settings</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors"
+          >
+            <LogOut size={16} />
+            <span>Sign out</span>
           </button>
         </div>
       </aside>
@@ -285,7 +327,11 @@ const DashboardLayout = () => {
             <AlertDialogAction
               className="rounded-full px-5 text-[13px] bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
-                if (deleteTarget) chatHistory.deleteSession(deleteTarget.id);
+                if (deleteTarget) {
+                  const wasActive = chatHistory.activeId === deleteTarget.id;
+                  chatHistory.deleteSession(deleteTarget.id);
+                  if (wasActive) navigate("/");
+                }
                 setDeleteTarget(null);
               }}
             >

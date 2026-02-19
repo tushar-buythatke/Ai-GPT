@@ -1,14 +1,15 @@
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
+import { useModels } from "@/hooks/useModels";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Settings, Palette, Trash2, ChevronRight } from "lucide-react";
+import { Settings, Palette, Trash2, ChevronDown } from "lucide-react";
 
 const ACCENT_COLORS = [
   { name: "Sunburn", hsl: "24 95% 53%", preview: "bg-orange-500" },
@@ -32,11 +33,29 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
   const [accentColor, setAccentColor] = useState(() => {
     return localStorage.getItem("pulse-accent") || "Sunburn";
   });
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+  const { models, selectedModel, setSelectedModel, loading: modelsLoading } = useModels();
+
+  useEffect(() => {
+    if (!showModelDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setShowModelDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showModelDropdown]);
+
+  // Close dropdown when dialog closes
+  useEffect(() => {
+    if (!open) setShowModelDropdown(false);
+  }, [open]);
 
   const handleAccentChange = (color: typeof ACCENT_COLORS[number]) => {
     setAccentColor(color.name);
     localStorage.setItem("pulse-accent", color.name);
-    // Update CSS variable
     document.documentElement.style.setProperty("--primary", color.hsl);
     document.documentElement.style.setProperty("--ring", color.hsl);
     document.documentElement.style.setProperty("--sidebar-primary", color.hsl);
@@ -54,6 +73,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
     { id: "data", label: "Data controls", icon: <Trash2 size={16} /> },
   ];
+
+  const currentModelName = modelsLoading
+    ? "Loading..."
+    : models.find(m => m.id === selectedModel)?.name || selectedModel || "Select model";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -101,13 +124,49 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
                   </button>
                 </div>
 
-                {/* Default model info */}
+                {/* Default model */}
                 <div className="flex items-center justify-between py-3 border-b border-border/30">
                   <div>
                     <p className="text-[14px] text-foreground">Default model</p>
-                    <p className="text-[12px] text-muted-foreground">Set in the chat input bar</p>
+                    <p className="text-[12px] text-muted-foreground">Used in chat &amp; file upload</p>
                   </div>
-                  <ChevronRight size={14} className="text-muted-foreground" />
+                  <div className="relative" ref={modelDropdownRef}>
+                    <button
+                      onClick={() => setShowModelDropdown(!showModelDropdown)}
+                      disabled={modelsLoading}
+                      className="flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors max-w-[160px]"
+                    >
+                      <span className="truncate">{currentModelName}</span>
+                      <ChevronDown
+                        size={12}
+                        className={cn("shrink-0 opacity-60 transition-transform", showModelDropdown && "rotate-180")}
+                      />
+                    </button>
+                    {showModelDropdown && models.length > 0 && (
+                      <div className="absolute right-0 top-full mt-1.5 w-60 max-h-52 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-[100] animate-in fade-in zoom-in-95">
+                        {models.map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModel(m.id);
+                              setShowModelDropdown(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2.5 text-[12px] hover:bg-secondary transition-colors truncate flex items-center gap-2",
+                              m.id === selectedModel ? "text-primary font-medium" : "text-foreground"
+                            )}
+                          >
+                            {m.vision && (
+                              <span className="shrink-0 text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full">
+                                vision
+                              </span>
+                            )}
+                            <span className="truncate">{m.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

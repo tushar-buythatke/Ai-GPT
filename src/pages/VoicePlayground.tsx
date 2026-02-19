@@ -4,7 +4,7 @@ import { Upload, ArrowUp, X, Copy, Check, ChevronDown, ChevronRight, Mic, FileAu
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, apiFetch } from "@/lib/api";
 
 interface VoiceResponse {
   text?: string;
@@ -109,7 +109,7 @@ const VoicePlayground = () => {
     }
 
     try {
-      const res = await fetch(apiUrl("/voice"), {
+      const res = await apiFetch(apiUrl("/voice"), {
         method: "POST",
         body: formData,
       });

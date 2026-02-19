@@ -2,9 +2,9 @@
 import React, { useState, useRef } from "react";
 import { Upload, ArrowUp, X, Copy, Check, ChevronDown, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useModels } from "@/hooks/useModels";
+import { useModels, VISION_MODEL_KEY } from "@/hooks/useModels";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, apiFetch } from "@/lib/api";
 
 const VisionPlayground = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -17,7 +17,7 @@ const VisionPlayground = () => {
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { models, selectedModel, setSelectedModel, loading: modelsLoading } = useModels();
+  const { models, selectedModel, setSelectedModel, loading: modelsLoading } = useModels(VISION_MODEL_KEY);
   const visionModels = models.filter(m => m.vision);
 
   const { isListening, toggleVoice } = useVoiceInput((transcript) => {
@@ -65,7 +65,7 @@ const VisionPlayground = () => {
     // Extract pure base64 from data URL
     const base64Image = image.includes(",") ? image.split(",")[1] : image;
 
-    fetch(apiUrl("/vision/base64"), {
+    apiFetch(apiUrl("/vision/base64"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -180,12 +180,16 @@ const VisionPlayground = () => {
           <div className="relative bg-card border border-border rounded-xl focus-within:border-ring/40 transition-all flex items-end shadow-sm">
             <textarea
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => setPrompt(e.target.value.slice(0, 1000))}
               placeholder="What should the model look for?"
               rows={2}
+              maxLength={1000}
               className="w-full resize-none bg-transparent px-4 py-[14px] text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[60px]"
             />
             <div className="flex items-center gap-1.5 pr-3 pb-2">
+              <span className={cn("text-[10px] tabular-nums", prompt.length >= 1000 ? "text-destructive" : "text-muted-foreground/40")}>
+                {prompt.length}/1k
+              </span>
               {/* Voice input */}
               <button
                 onClick={toggleVoice}

@@ -24,6 +24,7 @@ interface ChatHistoryContextType {
   deleteSession: (id: string) => void;
   renameSession: (id: string, title: string) => void;
   addMessage: (msg: ChatMessage, targetId?: string) => void;
+  updateSessionMessages: (id: string, messages: ChatMessage[]) => void;
 }
 
 const ChatHistoryContext = createContext<ChatHistoryContextType | null>(null);
@@ -106,7 +107,7 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
   const addMessage = useCallback(
     (msg: ChatMessage, targetId?: string) => {
       setSessions((prev) => {
-        const sessionId = targetId || prev.find(s => s.id === (targetId || activeId))?.id || activeId;
+        const sessionId = targetId || activeId;
         if (!sessionId) return prev;
         return prev.map((s) => {
           if (s.id !== sessionId) return s;
@@ -122,6 +123,12 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
     [activeId]
   );
 
+  const updateSessionMessages = useCallback((id: string, messages: ChatMessage[]) => {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, messages, updatedAt: Date.now() } : s))
+    );
+  }, []);
+
   const value: ChatHistoryContextType = {
     sessions,
     activeId,
@@ -131,6 +138,7 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
     deleteSession,
     renameSession,
     addMessage,
+    updateSessionMessages,
   };
 
   return (

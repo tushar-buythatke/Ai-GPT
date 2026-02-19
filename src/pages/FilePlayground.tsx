@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { useModels } from "@/hooks/useModels";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, apiFetch } from "@/lib/api";
 
 interface FileResponse {
   content: string;
@@ -126,7 +126,7 @@ const FilePlayground = () => {
     formData.append("model", selectedModel);
 
     try {
-      const res = await fetch(apiUrl("/process/file"), {
+      const res = await apiFetch(apiUrl("/process/file"), {
         method: "POST",
         body: formData,
       });

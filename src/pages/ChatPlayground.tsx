@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowUp, Copy, Check, RotateCcw, ChevronDown, Mic, MicOff, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useModels } from "@/hooks/useModels";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, apiFetch } from "@/lib/api";
 
 const CodeBlock = ({ children, className }: { children: any, className?: string }) => {
   const [copied, setCopied] = useState(false);
@@ -59,7 +59,7 @@ const ChatPlayground = () => {
     setTimeout(autoResize, 0);
   });
 
-  // Sync URL chatId to active session
+  // Sync URL chatId to active session and clear input when switching chats
   useEffect(() => {
     if (chatId) {
       if (chatId !== chat.activeId) {
@@ -69,9 +69,11 @@ const ChatPlayground = () => {
         }
       }
     } else {
-      // No chatId in URL (e.g. navigated to /), clear active session
       chat.setActiveId(null);
     }
+    // Clear input when navigating between chats
+    setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
   }, [chatId]);
 
   const messages = chat.activeSession?.messages || [];
@@ -109,26 +111,12 @@ const ChatPlayground = () => {
     el.style.height = Math.min(el.scrollHeight, 160) + "px";
   };
 
-  const handleSend = () => {
-    if (!input.trim() || isLoading) return;
-    let sessionId = chat.activeId;
-    if (!sessionId) {
-      sessionId = chat.createSession();
-      navigate(`/chat/${sessionId}`, { replace: true });
-    }
-    const content = input.trim();
-    setInput("");
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
-
-    chat.addMessage({ role: "user", content, timestamp: Date.now() }, sessionId);
+  const sendToApi = useCallback((
+    allMessages: { role: "user" | "assistant"; content: string }[],
+    sessionId: string
+  ) => {
     setIsLoading(true);
-
-    const allMessages = [
-      ...(chat.sessions.find(s => s.id === sessionId)?.messages || []).map(m => ({ role: m.role, content: m.content })),
-      { role: "user" as const, content },
-    ];
-
-    fetch(apiUrl("/v1/chat/completions"), {
+    apiFetch(apiUrl("/v1/chat/completions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -145,16 +133,54 @@ const ChatPlayground = () => {
         const reply = data?.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
         chat.addMessage(
           { role: "assistant", content: reply, timestamp: Date.now() },
-          sessionId!
+          sessionId
         );
       })
       .catch(err => {
         chat.addMessage(
           { role: "assistant", content: `Error: ${err.message}`, timestamp: Date.now() },
-          sessionId!
+          sessionId
         );
       })
       .finally(() => setIsLoading(false));
+  }, [selectedModel, chat]);
+
+  const handleSend = () => {
+    if (!input.trim() || isLoading) return;
+    let sessionId = chat.activeId;
+    if (!sessionId) {
+      sessionId = chat.createSession();
+      navigate(`/chat/${sessionId}`, { replace: true });
+    }
+    const content = input.trim();
+    setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+
+    chat.addMessage({ role: "user", content, timestamp: Date.now() }, sessionId);
+
+    const existingMessages = (chat.sessions.find(s => s.id === sessionId)?.messages || [])
+      .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
+    const allMessages = [...existingMessages, { role: "user" as const, content }];
+
+    sendToApi(allMessages, sessionId);
+  };
+
+  const handleRegenerate = (messageIndex: number) => {
+    if (isLoading || !chat.activeId || !chat.activeSession) return;
+    const sessionId = chat.activeId;
+
+    // Slice messages up to (not including) this assistant message
+    const prevMessages = chat.activeSession.messages.slice(0, messageIndex);
+    if (prevMessages.length === 0) return;
+
+    // Update session to remove the assistant message and everything after
+    chat.updateSessionMessages(sessionId, prevMessages);
+
+    const allMessages = prevMessages.map(m => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+    sendToApi(allMessages, sessionId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -172,7 +198,7 @@ const ChatPlayground = () => {
 
   return (
     <div className="flex flex-col h-full min-h-0 relative">
-      {/* Ambient glow background — uses current accent/primary color */}
+      {/* Ambient glow background */}
       <div className="pointer-events-none absolute inset-0 z-0 dark:opacity-40 opacity-20 transition-opacity duration-700">
         <div
           className="absolute bottom-[-30%] left-[10%] w-[70%] h-[80%] rounded-full blur-[120px]"
@@ -187,7 +213,8 @@ const ChatPlayground = () => {
           style={{ background: "hsl(350 89% 60% / 0.2)" }}
         />
       </div>
-      {/* Model selector at top-left - repositioned to be fixed/persistent */}
+
+      {/* Model selector at top-left */}
       <div className="absolute top-4 left-4 z-50">
         <div className="relative" ref={dropdownRef}>
           <button
@@ -290,10 +317,19 @@ const ChatPlayground = () => {
                       </ReactMarkdown>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleCopy(msg.content, i)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Copy">
+                      <button
+                        onClick={() => handleCopy(msg.content, i)}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        title="Copy"
+                      >
                         {copiedIdx === i ? <Check size={14} /> : <Copy size={14} />}
                       </button>
-                      <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Regenerate">
+                      <button
+                        onClick={() => handleRegenerate(i)}
+                        disabled={isLoading}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-30"
+                        title="Regenerate"
+                      >
                         <RotateCcw size={14} />
                       </button>
                     </div>
@@ -320,8 +356,7 @@ const ChatPlayground = () => {
         <div className="max-w-[720px] mx-auto">
           <div className="relative bg-card border border-border rounded-2xl focus-within:border-ring/40 transition-all flex items-end shadow-sm">
 
-
-            {/* Premium Context Limit Warning Pill */}
+            {/* Context Limit Warning */}
             {isOverLimit && (
               <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-50">
                 <div className="flex items-center gap-2 px-4 py-2 bg-destructive/10 backdrop-blur-md border border-destructive/20 rounded-full shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
