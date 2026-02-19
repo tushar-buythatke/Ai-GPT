@@ -9,6 +9,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import ChatPlayground from "@/pages/ChatPlayground";
 import VisionPlayground from "@/pages/VisionPlayground";
 import ImageUrlPlayground from "@/pages/ImageUrlPlayground";
+import FilePlayground from "@/pages/FilePlayground";
+import VoicePlayground from "@/pages/VoicePlayground";
 import ApiDocs from "@/pages/ApiDocs";
 import NotFound from "./pages/NotFound";
 
@@ -28,6 +30,8 @@ const App = () => (
                 <Route path="/chat/:chatId" element={<ChatPlayground />} />
                 <Route path="/vision" element={<VisionPlayground />} />
                 <Route path="/image-url" element={<ImageUrlPlayground />} />
+                <Route path="/file-upload" element={<FilePlayground />} />
+                <Route path="/voice" element={<VoicePlayground />} />
                 <Route path="/api-docs" element={<ApiDocs />} />
               </Route>
               <Route path="*" element={<NotFound />} />

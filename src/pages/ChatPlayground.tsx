@@ -81,7 +81,7 @@ const ChatPlayground = () => {
   const historyTokens = messages.reduce((acc, m) => acc + estimateTokens(m.content), 0);
   const inputTokens = estimateTokens(input);
   const totalTokens = historyTokens + inputTokens;
-  const isOverLimit = totalTokens > 3500;
+  const isOverLimit = totalTokens > 20000;
 
   useLayoutEffect(() => {
     const changedChat = prevActiveIdRef.current !== chat.activeId;
@@ -134,7 +134,7 @@ const ChatPlayground = () => {
       body: JSON.stringify({
         model: selectedModel,
         messages: allMessages,
-        max_tokens: 3500,
+        max_tokens: 20000,
       }),
     })
       .then(res => {
@@ -327,7 +327,7 @@ const ChatPlayground = () => {
                 <div className="flex items-center gap-2 px-4 py-2 bg-destructive/10 backdrop-blur-md border border-destructive/20 rounded-full shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <AlertCircle size={14} className="text-destructive" />
                   <span className="text-[12px] font-medium text-destructive whitespace-nowrap">
-                    Context Limit Reached (3.5k tokens)
+                    Context Limit Reached (20k tokens)
                   </span>
                 </div>
               </div>

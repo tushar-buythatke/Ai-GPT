@@ -29,11 +29,15 @@ import {
   Check,
   X,
   Settings,
+  FileUp,
+  Mic,
 } from "lucide-react";
 
 const navItems = [
   { to: "/vision", icon: Eye, label: "Vision" },
   { to: "/image-url", icon: ImageIcon, label: "Image URL" },
+  { to: "/file-upload", icon: FileUp, label: "File Upload" },
+  { to: "/voice", icon: Mic, label: "Voice" },
   { to: "/api-docs", icon: BookOpen, label: "API Docs" },
 ];
 

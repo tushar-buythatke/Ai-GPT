@@ -124,6 +124,58 @@ const endpoints: ApiEndpoint[] = [
       2
     ),
   },
+  {
+    id: "file-upload",
+    method: "POST",
+    name: "File Upload",
+    path: "/process/file",
+    description: "Upload a file (images, PDF, text files) and ask the model to analyze or extract information from it. Supported formats: JPG, PNG, WebP, GIF, PDF, TXT, MD, JSON, CSV, XML, HTML.",
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    body: `// FormData fields:
+{
+  file: <File>,           // The file to process
+  query: "Summarize this document",
+  model: "openai/gpt-oss-120b"
+}`,
+    response: JSON.stringify(
+      {
+        content: "This document discusses the implementation of machine learning models...",
+        reasoningContent: "Analyzing the document structure and key points...",
+        stats: {
+          tokensPerSecond: 85.95,
+          totalTimeSec: 0.877,
+          promptTokensCount: 106,
+          predictedTokensCount: 77,
+        },
+      },
+      null,
+      2
+    ),
+  },
+  {
+    id: "voice",
+    method: "POST",
+    name: "Voice / Audio",
+    path: "/voice",
+    description: "Upload an audio file for transcription using Whisper. Supported formats: MP3, MP4, MPEG, MPGA, M4A, WAV, WebM, OGG, FLAC, AAC, OPUS, WMA.",
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    body: `// FormData fields:
+{
+  audio: <File>,          // The audio file to transcribe (required)
+  query: "Technical interview"  // Optional: context to improve accuracy
+}`,
+    response: JSON.stringify(
+      {
+        text: "Hello, this is a transcription of the uploaded audio file.",
+      },
+      null,
+      2
+    ),
+  },
 ];
 
 const CodeBlock = ({ code, language = "json" }: { code: string; language?: string }) => {
@@ -222,7 +274,7 @@ const ApiDocs = () => {
           <div className="space-y-2">
             <h2 className="font-display text-xl">API Reference</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Four endpoints to interact with your models. All endpoints accept JSON.
+              Six endpoints to interact with your models. All endpoints accept JSON except file uploads which use multipart/form-data.
             </p>
           </div>
 
