@@ -163,19 +163,19 @@ const FilePlayground = () => {
 
   return (
     <div className="flex flex-col h-full items-center">
-      <div className="w-full shrink-0 flex justify-center py-4 border-b border-border/50 bg-background/20 backdrop-blur-xl sticky top-0 z-50">
+      <div className="w-full shrink-0 flex justify-center py-3 sm:py-4 border-b border-border/50 bg-background/20 backdrop-blur-xl sticky top-0 z-50">
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowModelDropdown(!showModelDropdown)}
-            className="flex items-center gap-1.5 text-[14px] font-medium text-foreground hover:bg-secondary/80 px-3 py-1.5 rounded-xl border border-border transition-colors backdrop-blur-sm bg-background/50"
+            className="flex items-center gap-1.5 text-[13px] sm:text-[14px] font-medium text-foreground hover:bg-secondary/80 px-3 py-2 sm:py-1.5 rounded-xl border border-border transition-colors backdrop-blur-sm bg-background/50 active:scale-[0.97]"
           >
-            <span>
+            <span className="truncate max-w-[200px] sm:max-w-none">
               {modelsLoading ? "Loading..." : models.find(m => m.id === selectedModel)?.name || selectedModel || "Select model"}
             </span>
-            <ChevronDown size={14} className={cn("transition-transform opacity-60", showModelDropdown && "rotate-180")} />
+            <ChevronDown size={14} className={cn("transition-transform opacity-60 shrink-0", showModelDropdown && "rotate-180")} />
           </button>
           {showModelDropdown && models.length > 0 && (
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 max-h-60 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[min(16rem,calc(100vw-2rem))] max-h-60 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95">
               {models.map((m) => (
                 <button
                   key={m.id}
@@ -184,7 +184,7 @@ const FilePlayground = () => {
                     setShowModelDropdown(false);
                   }}
                   className={cn(
-                    "w-full text-left px-4 py-2.5 text-[13px] hover:bg-secondary transition-colors truncate",
+                    "w-full text-left px-4 py-3 sm:py-2.5 text-[13px] hover:bg-secondary transition-colors truncate active:bg-secondary",
                     m.id === selectedModel ? "text-primary font-medium" : "text-foreground"
                   )}
                 >
@@ -196,11 +196,11 @@ const FilePlayground = () => {
         </div>
       </div>
 
-      <div className="flex-1 w-full max-w-[640px] px-4 py-8 overflow-y-auto min-h-0 scroll-smooth">
-        <div className="space-y-6">
+      <div className="flex-1 w-full max-w-[640px] px-3 sm:px-4 py-4 sm:py-8 overflow-y-auto min-h-0 scroll-smooth">
+        <div className="space-y-5 sm:space-y-6">
 
           <div className="text-center">
-            <h1 className="font-display text-2xl text-foreground">File Upload</h1>
+            <h1 className="font-display text-xl sm:text-2xl text-foreground">File Upload</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Upload a file and describe what you'd like the model to analyze or extract.
             </p>

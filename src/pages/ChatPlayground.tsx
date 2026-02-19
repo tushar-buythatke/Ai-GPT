@@ -214,20 +214,20 @@ const ChatPlayground = () => {
         />
       </div>
 
-      {/* Model selector at top-left */}
-      <div className="absolute top-4 left-4 z-50">
+      {/* Model selector — centered on mobile, top-left on desktop */}
+      <div className="flex justify-center sm:justify-start pt-3 pb-1 sm:pt-4 px-4 z-50 relative">
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowModelDropdown(!showModelDropdown)}
-            className="flex items-center gap-1.5 text-[14px] font-medium text-foreground/80 hover:text-foreground hover:bg-secondary/80 px-3 py-1.5 rounded-xl border border-border transition-all backdrop-blur-sm bg-background/50"
+            className="flex items-center gap-1.5 text-[13px] sm:text-[14px] font-medium text-foreground/80 hover:text-foreground hover:bg-secondary/80 px-3 py-2 sm:py-1.5 rounded-xl border border-border transition-all backdrop-blur-sm bg-background/50 active:scale-[0.97]"
           >
-            <span>
+            <span className="truncate max-w-[200px] sm:max-w-none">
               {modelsLoading ? "Loading..." : models.find(m => m.id === selectedModel)?.name || selectedModel || "Select model"}
             </span>
-            <ChevronDown size={14} className={cn("transition-transform opacity-60", showModelDropdown && "rotate-180")} />
+            <ChevronDown size={14} className={cn("transition-transform opacity-60 shrink-0", showModelDropdown && "rotate-180")} />
           </button>
           {showModelDropdown && models.length > 0 && (
-            <div className="absolute top-full left-0 mt-2 w-64 max-h-60 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-50">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 mt-2 w-[min(16rem,calc(100vw-2rem))] max-h-60 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95">
               {models.map((m) => (
                 <button
                   key={m.id}
@@ -236,7 +236,7 @@ const ChatPlayground = () => {
                     setShowModelDropdown(false);
                   }}
                   className={cn(
-                    "w-full text-left px-4 py-2.5 text-[13px] hover:bg-secondary transition-colors truncate",
+                    "w-full text-left px-4 py-3 sm:py-2.5 text-[13px] hover:bg-secondary transition-colors truncate active:bg-secondary",
                     m.id === selectedModel ? "text-primary font-medium" : "text-foreground"
                   )}
                 >
@@ -248,20 +248,20 @@ const ChatPlayground = () => {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto relative z-10">
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto relative z-10" style={{ overscrollBehaviorY: "contain" }}>
 
         {messages.length === 0 && !isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-            <h2 className="font-display text-2xl mb-2 text-foreground">Hatke Robot</h2>
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6">
+            <h2 className="font-display text-xl sm:text-2xl mb-2 text-foreground">Hatke Robot</h2>
             <p className="text-sm text-muted-foreground max-w-md">
               What are we building, fixing, or analyzing today?
             </p>
-            <div className="flex flex-wrap justify-center gap-2 mt-8 max-w-lg">
+            <div className="flex flex-wrap justify-center gap-2 mt-6 sm:mt-8 max-w-lg px-2">
               {["Analyze this dataset for me", "Explain how transformers work", "Write a Python script", "Debug my API response"].map((s) => (
                 <button
                   key={s}
                   onClick={() => setInput(s)}
-                  className="text-[13px] px-4 py-2 rounded-full border border-border dark:border-muted-foreground/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+                  className="text-[12px] sm:text-[13px] px-3 sm:px-4 py-2 rounded-full border border-border dark:border-muted-foreground/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-[0.97]"
                 >
                   {s}
                 </button>
@@ -269,18 +269,18 @@ const ChatPlayground = () => {
             </div>
           </div>
         ) : (
-          <div className="max-w-[720px] w-full mx-auto px-4 py-6 space-y-6 mt-auto">
+          <div className="max-w-[720px] w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5 sm:space-y-6 mt-auto">
             {messages.map((msg, i) => (
               <div key={i} className="group animate-fade-in">
                 {msg.role === "user" ? (
                   <div className="flex justify-end">
-                    <div className="bg-primary/80 dark:bg-primary/60 text-primary-foreground text-[15px] leading-relaxed px-4 py-2.5 rounded-3xl rounded-br-lg max-w-[85%] shadow-sm backdrop-blur-sm">
+                    <div className="bg-primary/80 dark:bg-primary/60 text-primary-foreground text-[14px] sm:text-[15px] leading-relaxed px-4 py-2.5 rounded-3xl rounded-br-lg max-w-[88%] sm:max-w-[85%] shadow-sm backdrop-blur-sm">
                       {msg.content}
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="text-[15px] leading-relaxed text-foreground prose prose-sm dark:prose-invert prose-headings:font-display prose-headings:font-semibold prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent max-w-none">
+                    <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground prose prose-sm dark:prose-invert prose-headings:font-display prose-headings:font-semibold prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent max-w-none">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -298,7 +298,7 @@ const ChatPlayground = () => {
                           },
                           table({ children }) {
                             return (
-                              <div className="overflow-x-auto my-4">
+                              <div className="overflow-x-auto my-4 -mx-3 px-3">
                                 <table className="w-full border-collapse border border-border rounded-lg overflow-hidden text-sm">
                                   {children}
                                 </table>
@@ -306,31 +306,32 @@ const ChatPlayground = () => {
                             );
                           },
                           th({ children }) {
-                            return <th className="border border-border bg-muted/50 px-4 py-2 text-left font-medium">{children}</th>;
+                            return <th className="border border-border bg-muted/50 px-3 sm:px-4 py-2 text-left font-medium">{children}</th>;
                           },
                           td({ children }) {
-                            return <td className="border border-border px-4 py-2">{children}</td>;
+                            return <td className="border border-border px-3 sm:px-4 py-2">{children}</td>;
                           }
                         }}
                       >
                         {msg.content}
                       </ReactMarkdown>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Actions: visible on hover (desktop) or always subtly visible (mobile/touch) */}
+                    <div className="flex items-center gap-1 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => handleCopy(msg.content, i)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        className="p-2 sm:p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors active:scale-90"
                         title="Copy"
                       >
-                        {copiedIdx === i ? <Check size={14} /> : <Copy size={14} />}
+                        {copiedIdx === i ? <Check size={15} /> : <Copy size={15} />}
                       </button>
                       <button
                         onClick={() => handleRegenerate(i)}
                         disabled={isLoading}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-30"
+                        className="p-2 sm:p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-30 active:scale-90"
                         title="Regenerate"
                       >
-                        <RotateCcw size={14} />
+                        <RotateCcw size={15} />
                       </button>
                     </div>
                   </div>
@@ -351,17 +352,17 @@ const ChatPlayground = () => {
         )}
       </div>
 
-      {/* Input area */}
-      <div className="px-4 pb-4 pt-2 shrink-0 relative z-10">
+      {/* Input area — safe area padding for notched phones */}
+      <div className="px-3 sm:px-4 pb-4 pt-2 shrink-0 relative z-10" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
         <div className="max-w-[720px] mx-auto">
-          <div className="relative bg-card border border-border rounded-2xl focus-within:border-ring/40 transition-all flex items-end shadow-sm">
+          <div className="relative bg-card border border-border rounded-2xl focus-within:border-ring/40 focus-within:shadow-md transition-all flex items-end shadow-sm">
 
             {/* Context Limit Warning */}
             {isOverLimit && (
               <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-50">
-                <div className="flex items-center gap-2 px-4 py-2 bg-destructive/10 backdrop-blur-md border border-destructive/20 rounded-full shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <AlertCircle size={14} className="text-destructive" />
-                  <span className="text-[12px] font-medium text-destructive whitespace-nowrap">
+                <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-destructive/10 backdrop-blur-md border border-destructive/20 rounded-full shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <AlertCircle size={14} className="text-destructive shrink-0" />
+                  <span className="text-[11px] sm:text-[12px] font-medium text-destructive whitespace-nowrap">
                     Context Limit Reached (20k tokens)
                   </span>
                 </div>
@@ -378,12 +379,12 @@ const ChatPlayground = () => {
               rows={1}
               className="w-full resize-none bg-transparent px-4 py-[14px] text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[52px]"
             />
-            <div className="flex items-center gap-1.5 pr-3 pb-2">
+            <div className="flex items-center gap-1 sm:gap-1.5 pr-2 sm:pr-3 pb-2">
               {/* Voice input */}
               <button
                 onClick={toggleVoice}
                 className={cn(
-                  "p-2 rounded-lg transition-all",
+                  "p-2.5 sm:p-2 rounded-lg transition-all",
                   isListening
                     ? "text-destructive animate-pulse bg-destructive/10"
                     : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary"
@@ -391,24 +392,24 @@ const ChatPlayground = () => {
                 disabled={isLoading}
                 title={isListening ? "Stop listening" : "Voice input"}
               >
-                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                {isListening ? <MicOff size={20} className="sm:w-[18px] sm:h-[18px]" /> : <Mic size={20} className="sm:w-[18px] sm:h-[18px]" />}
               </button>
               {/* Send */}
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading || isOverLimit}
                 className={cn(
-                  "p-2 transition-all duration-300",
+                  "p-2.5 sm:p-2 transition-all duration-300 active:scale-90",
                   input.trim() && !isLoading && !isOverLimit
                     ? "text-primary scale-110 drop-shadow-[0_0_10px_hsl(var(--primary)/0.6)]"
                     : "text-muted-foreground/20 scale-100"
                 )}
               >
-                <ArrowUp size={22} strokeWidth={2.5} />
+                <ArrowUp size={24} className="sm:w-[22px] sm:h-[22px]" strokeWidth={2.5} />
               </button>
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground/50 text-center mt-2">
+          <p className="text-[10px] sm:text-[11px] text-muted-foreground/50 text-center mt-2">
             Hatke Robot can make mistakes. Verify important information.
           </p>
         </div>

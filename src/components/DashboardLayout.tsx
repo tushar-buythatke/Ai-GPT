@@ -57,6 +57,21 @@ const DashboardLayout = () => {
   const isChatRoute = location.pathname === "/" || location.pathname.startsWith("/chat/");
   const { user, logout } = useAuth();
 
+  // Swipe-to-close sidebar on mobile
+  const touchStartX = React.useRef<number | null>(null);
+  const sidebarRef = React.useRef<HTMLElement>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    if (deltaX < -60) setCollapsed(true); // swipe left → close
+    touchStartX.current = null;
+  };
+
   const handleLogout = () => {
     logout();
     navigate("/signin", { replace: true });
@@ -96,10 +111,13 @@ const DashboardLayout = () => {
 
       {/* Sidebar — overlay drawer on mobile, inline on desktop */}
       <aside
+        ref={sidebarRef}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         className={cn(
-          "flex flex-col bg-sidebar shrink-0 transition-all duration-300 ease-in-out",
+          "flex flex-col bg-sidebar shrink-0 transition-all duration-300 ease-in-out will-change-transform",
           // Mobile: fixed overlay, slide in/out
-          "fixed inset-y-0 left-0 z-50 w-[260px]",
+          "fixed inset-y-0 left-0 z-50 w-[280px] sm:w-[260px]",
           "md:relative md:z-auto md:inset-auto",
           // Mobile visibility via translate
           collapsed ? "-translate-x-full md:translate-x-0" : "translate-x-0",
@@ -108,20 +126,20 @@ const DashboardLayout = () => {
         )}
       >
         {/* Top bar */}
-        <div className="flex items-center justify-between h-12 px-3 shrink-0">
+        <div className="flex items-center justify-between h-14 md:h-12 px-3 shrink-0">
           <button
             onClick={() => setCollapsed(true)}
-            className="p-1.5 rounded-md text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            className="p-2.5 md:p-1.5 rounded-lg md:rounded-md text-sidebar-foreground hover:bg-sidebar-accent transition-colors active:scale-95"
             aria-label="Close sidebar"
           >
-            <PanelLeftClose size={18} />
+            <PanelLeftClose size={20} className="md:w-[18px] md:h-[18px]" />
           </button>
           <button
             onClick={handleNewChat}
-            className="p-1.5 rounded-md text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            className="p-2.5 md:p-1.5 rounded-lg md:rounded-md text-sidebar-foreground hover:bg-sidebar-accent transition-colors active:scale-95"
             aria-label="New chat"
           >
-            <Plus size={18} />
+            <Plus size={20} className="md:w-[18px] md:h-[18px]" />
           </button>
         </div>
 
@@ -134,13 +152,13 @@ const DashboardLayout = () => {
               closeSidebarOnMobile();
             }}
             className={cn(
-              "flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] transition-colors",
+              "flex items-center gap-2.5 w-full px-3 py-2.5 md:py-2 rounded-lg text-[14px] md:text-[13px] transition-colors active:scale-[0.98]",
               isChatRoute
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent"
             )}
           >
-            <MessageSquare size={16} />
+            <MessageSquare size={18} className="md:w-4 md:h-4" />
             <span>Chat</span>
           </button>
           {navItems.map((item) => (
@@ -150,14 +168,14 @@ const DashboardLayout = () => {
               onClick={closeSidebarOnMobile}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors",
+                  "flex items-center gap-2.5 px-3 py-2.5 md:py-2 rounded-lg text-[14px] md:text-[13px] transition-colors active:scale-[0.98]",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent"
                 )
               }
             >
-              <item.icon size={16} />
+              <item.icon size={18} className="md:w-4 md:h-4" />
               <span>{item.label}</span>
             </NavLink>
           ))}
@@ -193,18 +211,20 @@ const DashboardLayout = () => {
                     {group.label}
                   </p>
                   <div className="space-y-0.5">
-                    {group.items.map((session) => (
+                    {group.items.map((session) => {
+                      const isActive = chatHistory.activeId === session.id;
+                      return (
                       <div
                         key={session.id}
                         className={cn(
-                          "group flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] cursor-pointer transition-all duration-200",
-                          chatHistory.activeId === session.id
+                          "group flex items-center gap-1 px-3 py-2.5 md:py-2 rounded-lg text-[14px] md:text-[13px] cursor-pointer transition-all duration-200",
+                          isActive
                             ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                             : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                         )}
                       >
                         {editingId === session.id ? (
-                          <div className="flex items-center gap-1 flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             <input
                               value={editTitle}
                               onChange={(e) => setEditTitle(e.target.value)}
@@ -212,11 +232,11 @@ const DashboardLayout = () => {
                               className="flex-1 min-w-0 bg-transparent text-[13px] outline-none border-b border-sidebar-foreground/30"
                               autoFocus
                             />
-                            <button onClick={confirmRename} className="p-0.5 hover:text-primary">
-                              <Check size={12} />
+                            <button onClick={confirmRename} className="p-1.5 hover:text-primary active:scale-90">
+                              <Check size={14} />
                             </button>
-                            <button onClick={() => setEditingId(null)} className="p-0.5">
-                              <X size={12} />
+                            <button onClick={() => setEditingId(null)} className="p-1.5 active:scale-90">
+                              <X size={14} />
                             </button>
                           </div>
                         ) : (
@@ -231,30 +251,35 @@ const DashboardLayout = () => {
                             >
                               {session.title}
                             </button>
-                            <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 animate-in fade-in duration-200">
+                            {/* Always visible on active item (for touch), hover for others */}
+                            <div className={cn(
+                              "items-center gap-0.5 shrink-0",
+                              isActive ? "flex" : "hidden group-hover:flex animate-in fade-in duration-200"
+                            )}>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   startRename(session.id, session.title);
                                 }}
-                                className="p-0.5 rounded hover:text-primary transition-colors"
+                                className="p-1.5 rounded-md hover:text-primary hover:bg-sidebar-accent transition-colors active:scale-90"
                               >
-                                <Pencil size={12} />
+                                <Pencil size={13} />
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setDeleteTarget({ id: session.id, title: session.title });
                                 }}
-                                className="p-0.5 rounded hover:text-destructive transition-colors"
+                                className="p-1.5 rounded-md hover:text-destructive hover:bg-sidebar-accent transition-colors active:scale-90"
                               >
-                                <Trash2 size={12} />
+                                <Trash2 size={13} />
                               </button>
                             </div>
                           </>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -271,16 +296,16 @@ const DashboardLayout = () => {
           )}
           <button
             onClick={() => setShowSettings(true)}
-            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            className="flex items-center gap-2.5 w-full px-3 py-2.5 md:py-2 rounded-lg text-[14px] md:text-[13px] text-sidebar-foreground hover:bg-sidebar-accent transition-colors active:scale-[0.98]"
           >
-            <Settings size={16} />
+            <Settings size={18} className="md:w-4 md:h-4" />
             <span>Settings</span>
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors"
+            className="flex items-center gap-2.5 w-full px-3 py-2.5 md:py-2 rounded-lg text-[14px] md:text-[13px] text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors active:scale-[0.98]"
           >
-            <LogOut size={16} />
+            <LogOut size={18} className="md:w-4 md:h-4" />
             <span>Sign out</span>
           </button>
         </div>
@@ -289,20 +314,20 @@ const DashboardLayout = () => {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {collapsed && (
-          <div className="flex items-center h-12 px-3 shrink-0">
+          <div className="flex items-center h-14 md:h-12 px-3 shrink-0">
             <button
               onClick={() => setCollapsed(false)}
-              className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+              className="p-2.5 md:p-1.5 rounded-lg md:rounded-md text-muted-foreground hover:bg-secondary transition-colors active:scale-95"
               aria-label="Open sidebar"
             >
-              <PanelLeft size={18} />
+              <PanelLeft size={20} className="md:w-[18px] md:h-[18px]" />
             </button>
             <button
               onClick={handleNewChat}
-              className="ml-2 p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+              className="ml-2 p-2.5 md:p-1.5 rounded-lg md:rounded-md text-muted-foreground hover:bg-secondary transition-colors active:scale-95"
               aria-label="New chat"
             >
-              <Plus size={18} />
+              <Plus size={20} className="md:w-[18px] md:h-[18px]" />
             </button>
           </div>
         )}

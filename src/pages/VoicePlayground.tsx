@@ -152,18 +152,18 @@ const VoicePlayground = () => {
 
   return (
     <div className="flex flex-col h-full items-center">
-      <div className="w-full shrink-0 flex justify-center py-4 border-b border-border/50 bg-background/20 backdrop-blur-xl sticky top-0 z-50">
-        <div className="flex items-center gap-2 text-[14px] font-medium text-foreground">
+      <div className="w-full shrink-0 flex justify-center py-3 sm:py-4 border-b border-border/50 bg-background/20 backdrop-blur-xl sticky top-0 z-50">
+        <div className="flex items-center gap-2 text-[13px] sm:text-[14px] font-medium text-foreground">
           <Mic size={16} className="text-primary" />
           <span>Whisper Transcription</span>
         </div>
       </div>
 
-      <div className="flex-1 w-full max-w-[640px] px-4 py-8 overflow-y-auto min-h-0 scroll-smooth">
-        <div className="space-y-6">
+      <div className="flex-1 w-full max-w-[640px] px-3 sm:px-4 py-4 sm:py-8 overflow-y-auto min-h-0 scroll-smooth">
+        <div className="space-y-5 sm:space-y-6">
 
           <div className="text-center">
-            <h1 className="font-display text-2xl text-foreground">Voice / Audio</h1>
+            <h1 className="font-display text-xl sm:text-2xl text-foreground">Voice / Audio</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Upload an audio file to transcribe it using Whisper. Add optional context to improve accuracy.
             </p>

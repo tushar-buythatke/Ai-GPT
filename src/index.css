@@ -105,27 +105,62 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   html {
     scroll-behavior: smooth;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  /* Prevent 300ms tap delay on interactive elements */
+  button, a, [role="button"], input, textarea, select {
+    touch-action: manipulation;
   }
 
-  ::-webkit-scrollbar-track {
-    background: transparent;
+  /* Safe area padding for notched devices */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    body {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
   }
 
-  ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
-    border-radius: 10px;
+  /* Desktop scrollbar styling */
+  @media (pointer: fine) {
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: hsl(var(--border));
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--muted-foreground) / 0.3);
+    }
   }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.3);
+  /* Hide custom scrollbar on touch devices — use native momentum scrolling */
+  @media (pointer: coarse) {
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    * {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+  }
+
+  /* Prevent iOS zoom on input focus (must be 16px+) */
+  @media screen and (max-width: 768px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
   }
 }

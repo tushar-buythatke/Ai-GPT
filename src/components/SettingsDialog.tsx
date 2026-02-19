@@ -80,52 +80,54 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl rounded-2xl bg-card border-border/50 shadow-2xl p-0 gap-0 overflow-hidden">
-        <div className="flex min-h-[400px]">
-          {/* Sidebar */}
-          <div className="w-[180px] border-r border-border/50 p-3 space-y-0.5 shrink-0">
-            <DialogHeader className="px-2 pb-3">
+      <DialogContent className="max-w-xl w-[95vw] sm:w-full rounded-2xl sm:rounded-2xl bg-card border-border/50 shadow-2xl p-0 gap-0 overflow-hidden max-h-[85vh]">
+        <div className="flex flex-col sm:flex-row sm:min-h-[400px] h-full">
+          {/* Tab bar — horizontal on mobile, sidebar on desktop */}
+          <div className="sm:w-[180px] sm:border-r border-b sm:border-b-0 border-border/50 p-3 sm:space-y-0.5 shrink-0">
+            <DialogHeader className="px-2 pb-2 sm:pb-3">
               <DialogTitle className="font-display text-base text-foreground">Settings</DialogTitle>
             </DialogHeader>
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] transition-colors",
-                  activeTab === tab.id
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            ))}
+            <div className="flex sm:flex-col gap-1 overflow-x-auto">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "flex items-center gap-2 sm:gap-2.5 sm:w-full px-3 py-2 rounded-lg text-[13px] transition-colors whitespace-nowrap shrink-0 active:scale-[0.97]",
+                    activeTab === tab.id
+                      ? "bg-secondary text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                  )}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Content */}
-          <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
             {activeTab === "general" && (
               <div className="space-y-6">
                 <h3 className="font-display text-base text-foreground">General</h3>
 
                 {/* Theme */}
-                <div className="flex items-center justify-between py-3 border-b border-border/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b border-border/30">
                   <div>
                     <p className="text-[14px] text-foreground">Appearance</p>
                     <p className="text-[12px] text-muted-foreground">Choose light or dark theme</p>
                   </div>
                   <button
                     onClick={toggleTheme}
-                    className="text-[13px] px-3 py-1.5 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+                    className="text-[13px] px-3 py-2 sm:py-1.5 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors shrink-0 active:scale-[0.97]"
                   >
                     {theme === "dark" ? "Dark" : "Light"}
                   </button>
                 </div>
 
                 {/* Default model */}
-                <div className="flex items-center justify-between py-3 border-b border-border/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b border-border/30">
                   <div>
                     <p className="text-[14px] text-foreground">Default model</p>
                     <p className="text-[12px] text-muted-foreground">Used in chat &amp; file upload</p>
@@ -134,7 +136,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
                     <button
                       onClick={() => setShowModelDropdown(!showModelDropdown)}
                       disabled={modelsLoading}
-                      className="flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors max-w-[160px]"
+                      className="flex items-center gap-1.5 text-[13px] px-3 py-2 sm:py-1.5 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors max-w-[160px] active:scale-[0.97]"
                     >
                       <span className="truncate">{currentModelName}</span>
                       <ChevronDown
@@ -143,7 +145,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
                       />
                     </button>
                     {showModelDropdown && models.length > 0 && (
-                      <div className="absolute right-0 top-full mt-1.5 w-60 max-h-52 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-[100] animate-in fade-in zoom-in-95">
+                      <div className="absolute right-0 top-full mt-1.5 w-[min(15rem,calc(100vw-3rem))] max-h-52 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-[100] animate-in fade-in zoom-in-95">
                         {models.map((m) => (
                           <button
                             key={m.id}
@@ -228,7 +230,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
               <div className="space-y-6">
                 <h3 className="font-display text-base text-foreground">Data controls</h3>
 
-                <div className="flex items-center justify-between py-3 border-b border-border/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b border-border/30">
                   <div>
                     <p className="text-[14px] text-foreground">Delete all chats</p>
                     <p className="text-[12px] text-muted-foreground">
@@ -237,13 +239,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
                   </div>
                   <button
                     onClick={handleClearAllChats}
-                    className="text-[13px] px-4 py-1.5 rounded-lg bg-secondary text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-200"
+                    className="text-[13px] px-4 py-2 sm:py-1.5 rounded-lg bg-secondary text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-200 shrink-0 active:scale-[0.97]"
                   >
                     Delete all
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between py-3 border-b border-border/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b border-border/30">
                   <div>
                     <p className="text-[14px] text-foreground">Export chats</p>
                     <p className="text-[12px] text-muted-foreground">
