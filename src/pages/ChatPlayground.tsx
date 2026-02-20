@@ -9,6 +9,8 @@ import { useChatHistory } from "@/hooks/useChatHistory";
 import { useModels } from "@/hooks/useModels";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { apiUrl, apiFetch } from "@/lib/api";
+import { toast } from "sonner";
+import remarkBreaks from "remark-breaks";
 
 const CodeBlock = ({ children, className }: { children: any, className?: string }) => {
   const [copied, setCopied] = useState(false);
@@ -44,7 +46,7 @@ const ChatPlayground = () => {
   const { chatId } = useParams<{ chatId?: string }>();
   const navigate = useNavigate();
   const chat = useChatHistory();
-  const { models, selectedModel, setSelectedModel, loading: modelsLoading } = useModels();
+  const { models, selectedModel, setSelectedModel, loading: modelsLoading, error: modelsError } = useModels();
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -126,6 +128,9 @@ const ChatPlayground = () => {
       }),
     })
       .then(res => {
+        if (res.status === 403) {
+          throw new Error("IP_NOT_WHITELISTED");
+        }
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         return res.json();
       })
@@ -135,12 +140,17 @@ const ChatPlayground = () => {
           { role: "assistant", content: reply, timestamp: Date.now() },
           sessionId
         );
+        toast.success("Response complete");
       })
       .catch(err => {
+        const errorMsg = err.message === "IP_NOT_WHITELISTED"
+          ? "Your IP address is not whitelisted. Please contact the administrator to whitelist your IP."
+          : err.message;
         chat.addMessage(
-          { role: "assistant", content: `Error: ${err.message}`, timestamp: Date.now() },
+          { role: "assistant", content: `Error: ${errorMsg}`, timestamp: Date.now() },
           sessionId
         );
+        toast.error(errorMsg);
       })
       .finally(() => setIsLoading(false));
   }, [selectedModel, chat]);
@@ -198,7 +208,6 @@ const ChatPlayground = () => {
 
   return (
     <div className="flex flex-col h-full min-h-0 relative">
-      {/* Ambient glow background */}
       <div className="pointer-events-none absolute inset-0 z-0 dark:opacity-40 opacity-20 transition-opacity duration-700">
         <div
           className="absolute bottom-[-30%] left-[10%] w-[70%] h-[80%] rounded-full blur-[120px]"
@@ -214,20 +223,19 @@ const ChatPlayground = () => {
         />
       </div>
 
-      {/* Model selector — centered on mobile, top-left on desktop */}
-      <div className="flex justify-center sm:justify-start pt-3 pb-1 sm:pt-4 px-4 z-50 relative">
+      <div className="flex justify-center sm:justify-start pt-2 pb-1 sm:pt-4 px-3 sm:px-4 z-50 relative shrink-0">
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowModelDropdown(!showModelDropdown)}
-            className="flex items-center gap-1.5 text-[13px] sm:text-[14px] font-medium text-foreground/80 hover:text-foreground hover:bg-secondary/80 px-3 py-2 sm:py-1.5 rounded-xl border border-border transition-all backdrop-blur-sm bg-background/50 active:scale-[0.97]"
+            className="flex items-center gap-1.5 text-[13px] sm:text-[14px] font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 px-3 py-2 sm:py-1.5 rounded-full border border-border/50 transition-all backdrop-blur-sm bg-background/60 active:scale-[0.97]"
           >
-            <span className="truncate max-w-[200px] sm:max-w-none">
+            <span className="truncate max-w-[180px] sm:max-w-none">
               {modelsLoading ? "Loading..." : models.find(m => m.id === selectedModel)?.name || selectedModel || "Select model"}
             </span>
             <ChevronDown size={14} className={cn("transition-transform opacity-60 shrink-0", showModelDropdown && "rotate-180")} />
           </button>
           {showModelDropdown && models.length > 0 && (
-            <div className="absolute top-full left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 mt-2 w-[min(16rem,calc(100vw-2rem))] max-h-60 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 mt-2 w-[min(16rem,calc(100vw-2rem))] max-h-60 overflow-y-auto bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95">
               {models.map((m) => (
                 <button
                   key={m.id}
@@ -236,8 +244,8 @@ const ChatPlayground = () => {
                     setShowModelDropdown(false);
                   }}
                   className={cn(
-                    "w-full text-left px-4 py-3 sm:py-2.5 text-[13px] hover:bg-secondary transition-colors truncate active:bg-secondary",
-                    m.id === selectedModel ? "text-primary font-medium" : "text-foreground"
+                    "w-full text-left px-4 py-3 sm:py-2.5 text-[13px] hover:bg-secondary/80 transition-colors truncate active:bg-secondary first:rounded-t-2xl last:rounded-b-2xl",
+                    m.id === selectedModel ? "text-primary font-medium bg-primary/5" : "text-foreground"
                   )}
                 >
                   {m.name}
@@ -246,27 +254,21 @@ const ChatPlayground = () => {
             </div>
           )}
         </div>
+        {modelsError && (
+          <div className="ml-2 px-3 py-1.5 bg-destructive/10 border border-destructive/20 rounded-full">
+            <span className="text-[11px] text-destructive">{modelsError}</span>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col overflow-y-auto relative z-10" style={{ overscrollBehaviorY: "contain" }}>
 
         {messages.length === 0 && !isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6">
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6 pb-20">
             <h2 className="font-display text-xl sm:text-2xl mb-2 text-foreground">Hatke Robot</h2>
-            <p className="text-sm text-muted-foreground max-w-md">
+            <p className="text-sm sm:text-[15px] text-muted-foreground max-w-md leading-relaxed">
               What are we building, fixing, or analyzing today?
             </p>
-            <div className="flex flex-wrap justify-center gap-2 mt-6 sm:mt-8 max-w-lg px-2">
-              {["Analyze this dataset for me", "Explain how transformers work", "Write a Python script", "Debug my API response"].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setInput(s)}
-                  className="text-[12px] sm:text-[13px] px-3 sm:px-4 py-2 rounded-full border border-border dark:border-muted-foreground/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-[0.97]"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
           </div>
         ) : (
           <div className="max-w-[720px] w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5 sm:space-y-6 mt-auto">
@@ -274,15 +276,15 @@ const ChatPlayground = () => {
               <div key={i} className="group animate-fade-in">
                 {msg.role === "user" ? (
                   <div className="flex justify-end">
-                    <div className="bg-primary/80 dark:bg-primary/60 text-primary-foreground text-[14px] sm:text-[15px] leading-relaxed px-4 py-2.5 rounded-3xl rounded-br-lg max-w-[88%] sm:max-w-[85%] shadow-sm backdrop-blur-sm">
+                    <div className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-[14px] sm:text-[15px] leading-relaxed px-4 py-2.5 rounded-2xl rounded-br-md max-w-[88%] sm:max-w-[85%] shadow-md shadow-primary/20 break-words">
                       {msg.content}
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground prose prose-sm dark:prose-invert prose-headings:font-display prose-headings:font-semibold prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent max-w-none">
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground space-y-3 prose-p:my-0 max-w-none">
                       <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
                         components={{
                           code({ node, inline, className, children, ...props }: any) {
                             const match = /language-(\w+)/.exec(className || "");
@@ -291,7 +293,7 @@ const ChatPlayground = () => {
                                 {children}
                               </CodeBlock>
                             ) : (
-                              <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                              <code className="bg-muted/80 px-1.5 py-0.5 rounded-md text-sm font-mono border border-border/30" {...props}>
                                 {children}
                               </code>
                             );
@@ -299,28 +301,27 @@ const ChatPlayground = () => {
                           table({ children }) {
                             return (
                               <div className="overflow-x-auto my-4 -mx-3 px-3">
-                                <table className="w-full border-collapse border border-border rounded-lg overflow-hidden text-sm">
+                                <table className="w-full border-collapse border border-border/50 rounded-lg overflow-hidden text-sm">
                                   {children}
                                 </table>
                               </div>
                             );
                           },
                           th({ children }) {
-                            return <th className="border border-border bg-muted/50 px-3 sm:px-4 py-2 text-left font-medium">{children}</th>;
+                            return <th className="border border-border/50 bg-muted/60 px-3 sm:px-4 py-2 text-left font-medium">{children}</th>;
                           },
                           td({ children }) {
-                            return <td className="border border-border px-3 sm:px-4 py-2">{children}</td>;
+                            return <td className="border border-border/50 px-3 sm:px-4 py-2">{children}</td>;
                           }
                         }}
                       >
                         {msg.content}
                       </ReactMarkdown>
                     </div>
-                    {/* Actions: visible on hover (desktop) or always subtly visible (mobile/touch) */}
-                    <div className="flex items-center gap-1 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                       <button
                         onClick={() => handleCopy(msg.content, i)}
-                        className="p-2 sm:p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors active:scale-90"
+                        className="p-2 sm:p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors active:scale-90"
                         title="Copy"
                       >
                         {copiedIdx === i ? <Check size={15} /> : <Copy size={15} />}
@@ -328,7 +329,7 @@ const ChatPlayground = () => {
                       <button
                         onClick={() => handleRegenerate(i)}
                         disabled={isLoading}
-                        className="p-2 sm:p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-30 active:scale-90"
+                        className="p-2 sm:p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors disabled:opacity-30 active:scale-90"
                         title="Regenerate"
                       >
                         <RotateCcw size={15} />
@@ -341,9 +342,9 @@ const ChatPlayground = () => {
             {isLoading && (
               <div className="animate-fade-in">
                 <div className="flex gap-1.5 py-2">
-                  <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
             )}

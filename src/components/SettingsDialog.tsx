@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Settings, Palette, Trash2, ChevronDown } from "lucide-react";
+import { Settings, Palette, Trash2, ChevronDown, Moon, Sun, CloudMoon, Cloud } from "lucide-react";
 
 const ACCENT_COLORS = [
   { name: "Sunburn", hsl: "24 95% 53%", preview: "bg-orange-500" },
@@ -18,9 +18,21 @@ const ACCENT_COLORS = [
   { name: "Purple", hsl: "271 91% 65%", preview: "bg-purple-500" },
   { name: "Rose", hsl: "350 89% 60%", preview: "bg-rose-500" },
   { name: "Cyan", hsl: "186 94% 42%", preview: "bg-cyan-500" },
+  { name: "Yellow", hsl: "45 93% 50%", preview: "bg-yellow-500" },
+  { name: "Pink", hsl: "330 82% 60%", preview: "bg-pink-500" },
+  { name: "Teal", hsl: "171 80% 40%", preview: "bg-teal-500" },
+  { name: "Indigo", hsl: "243 75% 59%", preview: "bg-indigo-500" },
 ];
 
+type ThemeMode = "light" | "dark" | "black" | "white";
 type SettingsTab = "general" | "appearance" | "data";
+
+const THEME_OPTIONS: { id: ThemeMode; label: string; icon: React.ReactNode; description: string }[] = [
+  { id: "light", label: "Light", icon: <Sun size={16} />, description: "Clean & bright" },
+  { id: "dark", label: "Dark", icon: <Moon size={16} />, description: "Easy on eyes" },
+  { id: "black", label: "Black", icon: <CloudMoon size={16} />, description: "Pure OLED black" },
+  { id: "white", label: "White", icon: <Cloud size={16} />, description: "Minimal & clean" },
+];
 
 interface SettingsDialogProps {
   open: boolean;
@@ -28,10 +40,10 @@ interface SettingsDialogProps {
 }
 
 const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [accentColor, setAccentColor] = useState(() => {
-    return localStorage.getItem("pulse-accent") || "Sunburn";
+    return localStorage.getItem("hatke-accent") || "Sunburn";
   });
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const modelDropdownRef = useRef<HTMLDivElement>(null);
@@ -55,7 +67,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
 
   const handleAccentChange = (color: typeof ACCENT_COLORS[number]) => {
     setAccentColor(color.name);
-    localStorage.setItem("pulse-accent", color.name);
+    localStorage.setItem("hatke-accent", color.name);
     document.documentElement.style.setProperty("--primary", color.hsl);
     document.documentElement.style.setProperty("--ring", color.hsl);
     document.documentElement.style.setProperty("--sidebar-primary", color.hsl);
@@ -63,8 +75,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
   };
 
   const handleClearAllChats = () => {
-    localStorage.removeItem("pulse-chat-sessions");
-    localStorage.removeItem("pulse-active-chat");
+    localStorage.removeItem("hatke-chat-sessions");
+    localStorage.removeItem("hatke-active-chat");
     window.location.reload();
   };
 
@@ -116,14 +128,22 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b border-border/30">
                   <div>
                     <p className="text-[14px] text-foreground">Appearance</p>
-                    <p className="text-[12px] text-muted-foreground">Choose light or dark theme</p>
+                    <p className="text-[12px] text-muted-foreground">Choose your theme</p>
                   </div>
-                  <button
-                    onClick={toggleTheme}
-                    className="text-[13px] px-3 py-2 sm:py-1.5 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors shrink-0 active:scale-[0.97]"
-                  >
-                    {theme === "dark" ? "Dark" : "Light"}
-                  </button>
+                  <div className="flex gap-1 bg-secondary rounded-lg p-0.5">
+                    {THEME_OPTIONS.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => setTheme(t.id)}
+                        className={cn(
+                          "text-[12px] px-2.5 py-1.5 rounded-md transition-colors flex items-center gap-1.5",
+                          theme === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {t.icon}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Default model */}
@@ -178,27 +198,35 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
                 <h3 className="font-display text-base text-foreground">Appearance</h3>
 
                 {/* Theme toggle */}
-                <div className="flex items-center justify-between py-3 border-b border-border/30">
-                  <p className="text-[14px] text-foreground">Theme</p>
-                  <div className="flex gap-1 bg-secondary rounded-lg p-0.5">
-                    <button
-                      onClick={() => theme !== "light" && toggleTheme()}
-                      className={cn(
-                        "text-[12px] px-3 py-1 rounded-md transition-colors",
-                        theme === "light" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-                      )}
-                    >
-                      Light
-                    </button>
-                    <button
-                      onClick={() => theme !== "dark" && toggleTheme()}
-                      className={cn(
-                        "text-[12px] px-3 py-1 rounded-md transition-colors",
-                        theme === "dark" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-                      )}
-                    >
-                      Dark
-                    </button>
+                <div className="py-3 border-b border-border/30">
+                  <p className="text-[14px] text-foreground mb-3">Theme</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {THEME_OPTIONS.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => setTheme(t.id)}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left",
+                          theme === t.id
+                            ? "border-primary bg-primary/10"
+                            : "border-border/50 hover:border-border"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-9 h-9 rounded-lg flex items-center justify-center",
+                          t.id === "light" && "bg-white border border-gray-200",
+                          t.id === "dark" && "bg-gray-900 border border-gray-700",
+                          t.id === "black" && "bg-black border border-gray-800",
+                          t.id === "white" && "bg-white border border-gray-300"
+                        )}>
+                          {t.icon}
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-medium text-foreground">{t.label}</p>
+                          <p className="text-[11px] text-muted-foreground">{t.description}</p>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -254,12 +282,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
                   </div>
                   <button
                     onClick={() => {
-                      const data = localStorage.getItem("pulse-chat-sessions") || "[]";
+                      const data = localStorage.getItem("hatke-chat-sessions") || "[]";
                       const blob = new Blob([data], { type: "application/json" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = "pulse-chats.json";
+                      a.download = "hatke-chats.json";
                       a.click();
                       URL.revokeObjectURL(url);
                     }}

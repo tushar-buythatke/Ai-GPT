@@ -29,8 +29,8 @@ interface ChatHistoryContextType {
 
 const ChatHistoryContext = createContext<ChatHistoryContextType | null>(null);
 
-const STORAGE_KEY = "pulse-chat-sessions";
-const ACTIVE_KEY = "pulse-active-chat";
+const STORAGE_KEY = "hatke-chat-sessions";
+const ACTIVE_KEY = "hatke-active-chat";
 
 function loadSessions(): ChatSession[] {
   try {

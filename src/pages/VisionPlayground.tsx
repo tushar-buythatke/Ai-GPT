@@ -75,14 +75,21 @@ const VisionPlayground = () => {
       }),
     })
       .then(res => {
+        if (res.status === 403) {
+          throw new Error("IP_NOT_WHITELISTED");
+        }
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         return res.json();
       })
       .then(data => {
-        setResponse(JSON.stringify(data, null, 2));
+        const content = data?.choices?.[0]?.message?.content || data?.content || data?.response || data?.text || JSON.stringify(data, null, 2);
+        setResponse(content);
       })
       .catch(err => {
-        setResponse(JSON.stringify({ error: err.message }, null, 2));
+        const errorMsg = err.message === "IP_NOT_WHITELISTED"
+          ? "Your IP address is not whitelisted. Please contact the administrator to whitelist your IP."
+          : err.message;
+        setResponse(JSON.stringify({ error: errorMsg }, null, 2));
       })
       .finally(() => setIsLoading(false));
   };

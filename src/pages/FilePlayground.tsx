@@ -130,6 +130,9 @@ const FilePlayground = () => {
         method: "POST",
         body: formData,
       });
+      if (res.status === 403) {
+        throw new Error("IP_NOT_WHITELISTED");
+      }
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
       if (data.error) {
@@ -138,7 +141,10 @@ const FilePlayground = () => {
         setResponse(data);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      const errorMsg = err instanceof Error && err.message === "IP_NOT_WHITELISTED"
+        ? "Your IP address is not whitelisted. Please contact the administrator to whitelist your IP."
+        : err instanceof Error ? err.message : "Unknown error";
+      setError(errorMsg);
     } finally {
       setIsLoading(false);
     }

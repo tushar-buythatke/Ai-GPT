@@ -324,7 +324,7 @@ const ApiDocs = () => {
                       >
                         <div className="flex flex-col">
                           <span className="text-sm font-medium text-foreground">{m.name}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono">{m.id}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono truncate">{m.id}</span>
                         </div>
                       </button>
                     ))}

@@ -8,8 +8,8 @@ export interface Model {
 }
 
 const MODELS_URL = apiUrl("/v1/models");
-export const DEFAULT_MODEL_KEY = "pulse-default-model";
-export const VISION_MODEL_KEY = "pulse-vision-model";
+export const DEFAULT_MODEL_KEY = "hatke-default-model";
+export const VISION_MODEL_KEY = "hatke-vision-model";
 
 const FALLBACK_MODELS: Model[] = [
   { id: "google/gemma-3-27b", name: "Gemma 3 27B", vision: true },
@@ -31,6 +31,7 @@ export function useModels(storageKey: string = DEFAULT_MODEL_KEY) {
     return localStorage.getItem(storageKey) || FALLBACK_MODELS[0].id;
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const setSelectedModel = useCallback((modelId: string) => {
     setSelectedModelState(modelId);
@@ -38,8 +39,12 @@ export function useModels(storageKey: string = DEFAULT_MODEL_KEY) {
   }, [storageKey]);
 
   useEffect(() => {
+    setError(null);
     apiFetch(MODELS_URL)
       .then((res) => {
+        if (res.status === 403) {
+          throw new Error("IP_NOT_WHITELISTED");
+        }
         if (!res.ok) throw new Error("API error");
         return res.json();
       })
@@ -60,9 +65,15 @@ export function useModels(storageKey: string = DEFAULT_MODEL_KEY) {
           }
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err.message === "IP_NOT_WHITELISTED") {
+          setError("Your IP address is not whitelisted. Please contact the administrator to whitelist your IP.");
+        } else {
+          setError(err.message);
+        }
+      })
       .finally(() => setLoading(false));
   }, [storageKey]);
 
-  return { models, selectedModel, setSelectedModel, loading };
+  return { models, selectedModel, setSelectedModel, loading, error };
 }
