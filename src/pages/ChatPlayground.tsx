@@ -1,7 +1,14 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowUp, Copy, Check, RotateCcw, ChevronDown, Mic, MicOff, AlertCircle } from "lucide-react";
+import { ArrowUp, Copy, Check, RotateCcw, ChevronDown, Mic, MicOff, AlertCircle, Zap } from "lucide-react";
+
+type EndpointType = "chat" | "completions" | "responses";
+const ENDPOINT_CONFIG: { id: EndpointType; label: string; path: string }[] = [
+  { id: "chat",        label: "Chat",        path: "/v1/chat/completions" },
+  { id: "completions", label: "Completions", path: "/v1/completions" },
+  { id: "responses",   label: "Responses",   path: "/v1/responses" },
+];
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -51,6 +58,10 @@ const ChatPlayground = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [endpointType, setEndpointType] = useState<EndpointType>("chat");
+  const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const lastResponseIdRef = useRef<string | null>(null);
+  const [lastResponseId, setLastResponseId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -73,10 +84,18 @@ const ChatPlayground = () => {
     } else {
       chat.setActiveId(null);
     }
-    // Clear input when navigating between chats
+    // Clear input and reset memory chain when navigating between chats
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+    lastResponseIdRef.current = null;
+    setLastResponseId(null);
   }, [chatId]);
+
+  // Reset memory chain when endpoint type changes
+  useEffect(() => {
+    lastResponseIdRef.current = null;
+    setLastResponseId(null);
+  }, [endpointType]);
 
   const messages = chat.activeSession?.messages || [];
 
@@ -118,28 +137,57 @@ const ChatPlayground = () => {
     sessionId: string
   ) => {
     setIsLoading(true);
-    apiFetch(apiUrl("/v1/chat/completions"), {
+    const lastMsg = allMessages[allMessages.length - 1];
+    let url: string;
+    let body: object;
+
+    if (endpointType === "responses") {
+      url = apiUrl("/v1/responses");
+      body = {
+        model: selectedModel,
+        input: lastMsg.content,
+        ...(memoryEnabled && lastResponseIdRef.current
+          ? { previous_response_id: lastResponseIdRef.current }
+          : {}),
+      };
+    } else if (endpointType === "completions") {
+      url = apiUrl("/v1/completions");
+      const prompt = allMessages
+        .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+        .join("\n") + "\nAssistant:";
+      body = { model: selectedModel, prompt, max_tokens: 20000 };
+    } else {
+      url = apiUrl("/v1/chat/completions");
+      body = { model: selectedModel, messages: allMessages, max_tokens: 20000 };
+    }
+
+    apiFetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: selectedModel,
-        messages: allMessages,
-        max_tokens: 20000,
-      }),
+      body: JSON.stringify(body),
     })
       .then(res => {
-        if (res.status === 403) {
-          throw new Error("IP_NOT_WHITELISTED");
-        }
+        if (res.status === 403) throw new Error("IP_NOT_WHITELISTED");
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         return res.json();
       })
       .then(data => {
-        const reply = data?.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
-        chat.addMessage(
-          { role: "assistant", content: reply, timestamp: Date.now() },
-          sessionId
-        );
+        let reply: string;
+        if (endpointType === "responses") {
+          if (Array.isArray(data?.output)) {
+            const block = data.output.find((o: any) => o.type === "message" || o.type === "text");
+            reply = block?.content ?? block?.text ?? data.output_text ?? JSON.stringify(data, null, 2);
+          } else {
+            reply = data?.output_text ?? data?.output ?? JSON.stringify(data, null, 2);
+          }
+          const newId = data?.id ?? data?.response_id;
+          if (newId) { lastResponseIdRef.current = newId; setLastResponseId(newId); }
+        } else if (endpointType === "completions") {
+          reply = data?.choices?.[0]?.text ?? JSON.stringify(data, null, 2);
+        } else {
+          reply = data?.choices?.[0]?.message?.content ?? JSON.stringify(data, null, 2);
+        }
+        chat.addMessage({ role: "assistant", content: reply, timestamp: Date.now() }, sessionId);
         toast.success("Response complete");
       })
       .catch(err => {
@@ -153,7 +201,7 @@ const ChatPlayground = () => {
         toast.error(errorMsg);
       })
       .finally(() => setIsLoading(false));
-  }, [selectedModel, chat]);
+  }, [selectedModel, chat, endpointType, memoryEnabled]);
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
@@ -168,9 +216,9 @@ const ChatPlayground = () => {
 
     chat.addMessage({ role: "user", content, timestamp: Date.now() }, sessionId);
 
-    const existingMessages = (chat.sessions.find(s => s.id === sessionId)?.messages || [])
-      .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
-    const allMessages = [...existingMessages, { role: "user" as const, content }];
+    // Always send only the current message — never cram history.
+    // Memory ON for /responses = chains via previous_response_id (server holds context).
+    const allMessages = [{ role: "user" as const, content }];
 
     sendToApi(allMessages, sessionId);
   };
@@ -223,7 +271,8 @@ const ChatPlayground = () => {
         />
       </div>
 
-      <div className="flex justify-center sm:justify-start pt-2 pb-1 sm:pt-4 px-3 sm:px-4 z-50 relative shrink-0">
+      {/* Top bar: model selector only */}
+      <div className="flex items-center justify-center sm:justify-start pt-2 pb-1 sm:pt-4 px-3 sm:px-4 z-50 relative shrink-0">
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowModelDropdown(!showModelDropdown)}
@@ -239,10 +288,7 @@ const ChatPlayground = () => {
               {models.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => {
-                    setSelectedModel(m.id);
-                    setShowModelDropdown(false);
-                  }}
+                  onClick={() => { setSelectedModel(m.id); setShowModelDropdown(false); }}
                   className={cn(
                     "w-full text-left px-4 py-3 sm:py-2.5 text-[13px] hover:bg-secondary/80 transition-colors truncate active:bg-secondary first:rounded-t-2xl last:rounded-b-2xl",
                     m.id === selectedModel ? "text-primary font-medium bg-primary/5" : "text-foreground"
@@ -255,7 +301,7 @@ const ChatPlayground = () => {
           )}
         </div>
         {modelsError && (
-          <div className="ml-2 px-3 py-1.5 bg-destructive/10 border border-destructive/20 rounded-full">
+          <div className="ml-2 px-2.5 py-1 bg-destructive/10 border border-destructive/20 rounded-full">
             <span className="text-[11px] text-destructive">{modelsError}</span>
           </div>
         )}
@@ -287,7 +333,6 @@ const ChatPlayground = () => {
                         remarkPlugins={[remarkGfm, remarkBreaks]}
                         components={{
                           code({ node, inline, className, children, ...props }: any) {
-                            const match = /language-(\w+)/.exec(className || "");
                             return !inline ? (
                               <CodeBlock className={className} {...props}>
                                 {children}
@@ -353,10 +398,10 @@ const ChatPlayground = () => {
         )}
       </div>
 
-      {/* Input area — safe area padding for notched phones */}
+      {/* Input area */}
       <div className="px-3 sm:px-4 pb-4 pt-2 shrink-0 relative z-10" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
         <div className="max-w-[720px] mx-auto">
-          <div className="relative bg-card border border-border rounded-2xl focus-within:border-ring/40 focus-within:shadow-md transition-all flex items-end shadow-sm">
+          <div className="relative bg-card border border-border rounded-2xl focus-within:border-primary/30 focus-within:shadow-lg transition-all shadow-sm overflow-hidden">
 
             {/* Context Limit Warning */}
             {isOverLimit && (
@@ -370,43 +415,90 @@ const ChatPlayground = () => {
               </div>
             )}
 
-            {/* Textarea */}
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => { setInput(e.target.value); autoResize(); }}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask anything"
-              rows={1}
-              className="w-full resize-none bg-transparent px-4 py-[14px] text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[52px]"
-            />
-            <div className="flex items-center gap-1 sm:gap-1.5 pr-2 sm:pr-3 pb-2">
-              {/* Voice input */}
+            {/* Textarea row */}
+            <div className="flex items-end">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => { setInput(e.target.value); autoResize(); }}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask anything"
+                rows={1}
+                className="w-full resize-none bg-transparent px-4 py-[14px] text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[52px]"
+              />
+              <div className="flex items-center gap-1 pr-2 pb-2 shrink-0">
+                <button
+                  onClick={toggleVoice}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    isListening ? "text-destructive animate-pulse bg-destructive/10" : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary"
+                  )}
+                  disabled={isLoading}
+                  title={isListening ? "Stop listening" : "Voice input"}
+                >
+                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading || isOverLimit}
+                  className={cn(
+                    "p-2 transition-all duration-300 active:scale-90",
+                    input.trim() && !isLoading && !isOverLimit
+                      ? "text-primary scale-110 drop-shadow-[0_0_10px_hsl(var(--primary)/0.6)]"
+                      : "text-muted-foreground/20 scale-100"
+                  )}
+                >
+                  <ArrowUp size={22} strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+
+            {/* Bottom toolbar: endpoint selector + memory toggle */}
+            <div className="flex items-center justify-between px-3 pb-2.5 pt-1 border-t border-border/40 gap-2">
+              {/* Endpoint tabs */}
+              <div className="flex items-center gap-1">
+                {ENDPOINT_CONFIG.map(ep => (
+                  <button
+                    key={ep.id}
+                    onClick={() => setEndpointType(ep.id)}
+                    title={ep.path}
+                    className={cn(
+                      "text-[11px] sm:text-[12px] font-medium px-2.5 py-1 rounded-lg transition-all whitespace-nowrap",
+                      endpointType === ep.id
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/70"
+                    )}
+                  >
+                    {ep.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Memory toggle — all endpoints */}
               <button
-                onClick={toggleVoice}
+                onClick={() => {
+                  setMemoryEnabled(m => !m);
+                  lastResponseIdRef.current = null;
+                  setLastResponseId(null);
+                }}
+                title={memoryEnabled
+                  ? `Memory ON — /responses chains via previous_response_id${lastResponseId ? ` (${lastResponseId.slice(-8)})` : " (waiting for first response)"}`
+                  : "Memory OFF — each request is stateless, no previous_response_id sent"}
                 className={cn(
-                  "p-2.5 sm:p-2 rounded-lg transition-all",
-                  isListening
-                    ? "text-destructive animate-pulse bg-destructive/10"
-                    : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary"
-                )}
-                disabled={isLoading}
-                title={isListening ? "Stop listening" : "Voice input"}
-              >
-                {isListening ? <MicOff size={20} className="sm:w-[18px] sm:h-[18px]" /> : <Mic size={20} className="sm:w-[18px] sm:h-[18px]" />}
-              </button>
-              {/* Send */}
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading || isOverLimit}
-                className={cn(
-                  "p-2.5 sm:p-2 transition-all duration-300 active:scale-90",
-                  input.trim() && !isLoading && !isOverLimit
-                    ? "text-primary scale-110 drop-shadow-[0_0_10px_hsl(var(--primary)/0.6)]"
-                    : "text-muted-foreground/20 scale-100"
+                  "flex items-center gap-1.5 text-[11px] sm:text-[12px] font-medium px-2.5 py-1 rounded-lg border transition-all whitespace-nowrap shrink-0",
+                  memoryEnabled
+                    ? "bg-primary/10 border-primary/30 text-primary"
+                    : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                 )}
               >
-                <ArrowUp size={24} className="sm:w-[22px] sm:h-[22px]" strokeWidth={2.5} />
+                <Zap size={11} className={cn("transition-colors shrink-0", memoryEnabled && "fill-primary")} />
+                <span>Memory</span>
+                <span className={cn(
+                  "text-[9px] font-bold px-1 py-0.5 rounded",
+                  memoryEnabled ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
+                )}>
+                  {memoryEnabled ? "ON" : "OFF"}
+                </span>
               </button>
             </div>
           </div>
