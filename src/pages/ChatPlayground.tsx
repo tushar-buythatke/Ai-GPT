@@ -5,7 +5,7 @@ import { ArrowUp, Copy, Check, RotateCcw, ChevronDown, Mic, MicOff, AlertCircle,
 
 type EndpointType = "chat" | "completions" | "responses";
 const ENDPOINT_CONFIG: { id: EndpointType; label: string; path: string }[] = [
-  { id: "chat",        label: "Chat",        path: "/v1/chat/completions" },
+  { id: "chat",        label: "Chat",        path: "/api/v1/chat" },
   { id: "completions", label: "Completions", path: "/v1/completions" },
   { id: "responses",   label: "Responses",   path: "/v1/responses" },
 ];
@@ -141,7 +141,18 @@ const ChatPlayground = () => {
     let url: string;
     let body: object;
 
-    if (endpointType === "responses") {
+    if (endpointType === "chat") {
+      // LM Studio stateful chat — input string, returns response_id
+      url = apiUrl("/api/v1/chat");
+      body = {
+        model: selectedModel,
+        input: lastMsg.content,
+        ...(memoryEnabled && lastResponseIdRef.current
+          ? { previous_response_id: lastResponseIdRef.current }
+          : {}),
+      };
+    } else if (endpointType === "responses") {
+      // OpenAI Responses API — input string, returns id
       url = apiUrl("/v1/responses");
       body = {
         model: selectedModel,
@@ -150,15 +161,10 @@ const ChatPlayground = () => {
           ? { previous_response_id: lastResponseIdRef.current }
           : {}),
       };
-    } else if (endpointType === "completions") {
-      url = apiUrl("/v1/completions");
-      const prompt = allMessages
-        .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-        .join("\n") + "\nAssistant:";
-      body = { model: selectedModel, prompt, max_tokens: 20000 };
     } else {
-      url = apiUrl("/v1/chat/completions");
-      body = { model: selectedModel, messages: allMessages, max_tokens: 20000 };
+      // /v1/completions — prompt string
+      url = apiUrl("/v1/completions");
+      body = { model: selectedModel, prompt: lastMsg.content, max_tokens: 20000 };
     }
 
     apiFetch(url, {
@@ -172,22 +178,47 @@ const ChatPlayground = () => {
         return res.json();
       })
       .then(data => {
-        let reply: string;
-        if (endpointType === "responses") {
+        let reply: string = JSON.stringify(data, null, 2);
+
+        if (endpointType === "chat") {
+          // /api/v1/chat response: output[].content is a plain string, returns response_id
           if (Array.isArray(data?.output)) {
-            const block = data.output.find((o: any) => o.type === "message" || o.type === "text");
-            reply = block?.content ?? block?.text ?? data.output_text ?? JSON.stringify(data, null, 2);
+            const msgBlock = data.output.find((o: any) => o.type === "message");
+            reply = typeof msgBlock?.content === "string"
+              ? msgBlock.content
+              : JSON.stringify(data, null, 2);
+          }
+          const newId = data?.response_id;
+          if (newId) { lastResponseIdRef.current = newId; setLastResponseId(newId); }
+
+        } else if (endpointType === "responses") {
+          // /v1/responses: output[].content is [{type:"output_text", text:"..."}], returns id
+          if (Array.isArray(data?.output)) {
+            const msgBlock = data.output.find((o: any) => o.type === "message");
+            if (msgBlock && Array.isArray(msgBlock.content)) {
+              const textItem = msgBlock.content.find((c: any) => c.type === "output_text");
+              reply = typeof textItem?.text === "string"
+                ? textItem.text
+                : msgBlock.content.map((c: any) => c.text ?? "").filter(Boolean).join("\n")
+                  || JSON.stringify(data, null, 2);
+            } else if (typeof msgBlock?.content === "string") {
+              reply = msgBlock.content;
+            } else {
+              reply = data.output_text ?? JSON.stringify(data, null, 2);
+            }
           } else {
-            reply = data?.output_text ?? data?.output ?? JSON.stringify(data, null, 2);
+            reply = typeof data?.output_text === "string" ? data.output_text : JSON.stringify(data, null, 2);
           }
           const newId = data?.id ?? data?.response_id;
           if (newId) { lastResponseIdRef.current = newId; setLastResponseId(newId); }
-        } else if (endpointType === "completions") {
-          reply = data?.choices?.[0]?.text ?? JSON.stringify(data, null, 2);
+
         } else {
-          reply = data?.choices?.[0]?.message?.content ?? JSON.stringify(data, null, 2);
+          // /v1/completions
+          reply = data?.choices?.[0]?.text ?? JSON.stringify(data, null, 2);
         }
-        chat.addMessage({ role: "assistant", content: reply, timestamp: Date.now() }, sessionId);
+        // Safety: always store a string, never an object
+        const safeReply = typeof reply === "string" ? reply : JSON.stringify(reply, null, 2);
+        chat.addMessage({ role: "assistant", content: safeReply, timestamp: Date.now() }, sessionId);
         toast.success("Response complete");
       })
       .catch(err => {
@@ -477,9 +508,15 @@ const ChatPlayground = () => {
               {/* Memory toggle — all endpoints */}
               <button
                 onClick={() => {
-                  setMemoryEnabled(m => !m);
-                  lastResponseIdRef.current = null;
-                  setLastResponseId(null);
+                  setMemoryEnabled(prev => {
+                    const next = !prev;
+                    // Only clear the chain when turning OFF — turning ON should keep any existing id
+                    if (!next) {
+                      lastResponseIdRef.current = null;
+                      setLastResponseId(null);
+                    }
+                    return next;
+                  });
                 }}
                 title={memoryEnabled
                   ? `Memory ON — /responses chains via previous_response_id${lastResponseId ? ` (${lastResponseId.slice(-8)})` : " (waiting for first response)"}`

@@ -2,10 +2,9 @@
 import React, { useState } from "react";
 import {
   BookOpen, Copy, Check, ChevronRight, Terminal, FileJson,
-  Zap, Info, Radio, Layers, ArrowRight, ExternalLink,
+  Zap, Info, Radio, Layers, ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useModels } from "@/hooks/useModels";
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 
@@ -64,7 +63,7 @@ const endpoints: ApiEndpoint[] = [
     description: "LM Studio-style stateful chat endpoint. Pass input as a string — the server stores context and returns a response_id. Use previous_response_id in the next request to continue the conversation without resending history. Set store: false for stateless one-off requests.",
     headers: { Authorization: "Bearer $HATKE_API_TOKEN", "Content-Type": "application/json" },
     body: JSON.stringify({ model: "openai/gpt-oss-120b", input: "My favorite color is blue." }, null, 2),
-    response: JSON.stringify({ model_instance_id: "openai/gpt-oss-120b", output: [{ type: "message", content: "That's great! Blue is a beautiful color..." }], response_id: "resp_abc123xyz..." }, null, 2),
+    response: JSON.stringify({ model_instance_id: "openai/gpt-oss-120b", output: [{ type: "reasoning", content: "The user said their favorite color is blue. I should acknowledge that warmly." }, { type: "message", content: "That's great! Blue is a beautiful color — it's often associated with calm, depth, and creativity." }], stats: { tokens_per_second: 88.74, total_time_sec: 1.23, prompt_tokens_count: 12 }, response_id: "resp_abc123xyz..." }, null, 2),
     examples: [
       { label: "Continue conversation", body: JSON.stringify({ model: "openai/gpt-oss-120b", input: "What color did I just mention?", previous_response_id: "resp_abc123xyz..." }, null, 2) },
       { label: "Stateless (store: false)", body: JSON.stringify({ model: "openai/gpt-oss-120b", input: "Tell me a joke.", store: false }, null, 2) },
@@ -79,7 +78,10 @@ const endpoints: ApiEndpoint[] = [
     description: "Create responses with support for streaming, reasoning, and stateful conversation context. Pass previous_response_id to continue a conversation without resending history. Compatible with the OpenAI Responses API.",
     headers: { Authorization: "Bearer $HATKE_API_TOKEN", "Content-Type": "application/json" },
     body: JSON.stringify({ model: "openai/gpt-oss-120b", input: "Provide a prime number less than 50", reasoning: { effort: "low" } }, null, 2),
-    response: JSON.stringify({ id: "resp_abc123xyz", model: "openai/gpt-oss-120b", output: [{ type: "message", content: "Here is a prime number less than 50: 47" }], output_text: "Here is a prime number less than 50: 47" }, null, 2),
+    response: JSON.stringify({ id: "resp_ececf248...", output: [{ type: "reasoning", content: [{ type: "reasoning_text", text: "The user wants a prime number less than 50. Primes less than 50: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47. I'll pick 47." }] }, { type: "message", content: [{ type: "output_text", text: "Here is a prime number less than 50: **47**." }] }], usage: { input_tokens: 73, output_tokens: 20 } }, null, 2),
+    examples: [
+      { label: "Continue conversation", body: JSON.stringify({ model: "openai/gpt-oss-120b", input: "Give me another one.", previous_response_id: "resp_ececf248..." }, null, 2) },
+    ],
   },
   {
     id: "vision-base64",
@@ -312,9 +314,9 @@ const StatefulChatsGuide = () => {
   const continueBody = JSON.stringify({ model: "openai/gpt-oss-120b", input: "What color did I just mention?", previous_response_id: "resp_abc123xyz" }, null, 2);
   const statelessBody = JSON.stringify({ model: "openai/gpt-oss-120b", input: "Tell me a joke.", store: false }, null, 2);
   const streamBody = JSON.stringify({ model: "openai/gpt-oss-120b", input: "Hello", stream: true }, null, 2);
-  const startCurl = `curl -X POST ${BASE_URL}/v1/responses \\\n  -H "Authorization: Bearer $HATKE_API_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${startBody}'`;
-  const continueCurl = `curl -X POST ${BASE_URL}/v1/responses \\\n  -H "Authorization: Bearer $HATKE_API_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${continueBody}'`;
-  const startResponse = JSON.stringify({ id: "resp_abc123xyz", model_instance_id: "openai/gpt-oss-120b", output: [{ type: "message", content: "That's great! Blue is a beautiful color..." }] }, null, 2);
+  const startCurl = `curl -X POST ${BASE_URL}/api/v1/chat \\\n  -H "Authorization: Bearer $HATKE_API_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${startBody}'`;
+  const continueCurl = `curl -X POST ${BASE_URL}/api/v1/chat \\\n  -H "Authorization: Bearer $HATKE_API_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${continueBody}'`;
+  const startResponse = JSON.stringify({ model_instance_id: "openai/gpt-oss-120b", output: [{ type: "message", content: "That's great! Blue is a beautiful color — calm, deep, and creative." }], stats: { tokens_per_second: 88.74, total_time_sec: 1.23 }, response_id: "resp_abc123xyz" }, null, 2);
 
   return (
     <div className="p-6 space-y-8 max-w-3xl">
@@ -324,15 +326,15 @@ const StatefulChatsGuide = () => {
           <h2 className="text-base font-semibold text-foreground">Stateful Chats</h2>
         </div>
         <p className="text-[13px] text-muted-foreground leading-relaxed">
-          The <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1.5 py-0.5 rounded font-mono">/v1/responses</code> endpoint is stateful by default.
-          You don't need to pass full conversation history — the server stores it and links responses via a unique <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1.5 py-0.5 rounded font-mono">id</code>.
-          Branch any conversation by referencing a prior <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1.5 py-0.5 rounded font-mono">id</code>.
+          The <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1.5 py-0.5 rounded font-mono">/api/v1/chat</code> endpoint is stateful by default.
+          You don't need to pass full conversation history — the server stores context and links responses via a unique <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1.5 py-0.5 rounded font-mono">response_id</code>.
+          Branch any conversation by referencing a prior <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1.5 py-0.5 rounded font-mono">response_id</code>.
         </p>
       </div>
 
       {/* How it works diagram */}
       <div className="flex items-center gap-2 flex-wrap">
-        {["Send input", "Get id in response", "Pass as previous_response_id", "Model remembers context"].map((s, i, arr) => (
+        {["Send input", "Get response_id", "Pass as previous_response_id", "Model remembers context"].map((s, i, arr) => (
           <React.Fragment key={s}>
             <div className="flex items-center gap-2 bg-secondary/60 border border-border/50 rounded-lg px-3 py-2">
               <span className="text-[10px] font-bold text-primary bg-primary/10 rounded-full w-4 h-4 flex items-center justify-center shrink-0">{i + 1}</span>
@@ -354,7 +356,7 @@ const StatefulChatsGuide = () => {
       <div className="flex items-start gap-2 bg-primary/5 border border-primary/15 rounded-lg px-4 py-3">
         <Info size={13} className="text-primary mt-0.5 shrink-0" />
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Every response includes a unique <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1 py-0.5 rounded font-mono">id</code> you can use to branch or continue the conversation.
+          Every response includes a unique <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1 py-0.5 rounded font-mono">response_id</code> you can use to branch or continue the conversation.
         </p>
       </div>
 
@@ -368,7 +370,7 @@ const StatefulChatsGuide = () => {
           <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">2. Continue the conversation</h3>
           <CopyBtn text={continueCurl} label="cURL" icon={Terminal} />
         </div>
-        <p className="text-[12px] text-muted-foreground">Pass the <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1 py-0.5 rounded font-mono">id</code> as <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1 py-0.5 rounded font-mono">previous_response_id</code>. The model remembers context without you resending history.</p>
+        <p className="text-[12px] text-muted-foreground">Pass the <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1 py-0.5 rounded font-mono">response_id</code> as <code className="text-[11px] bg-zinc-900 text-zinc-200 px-1 py-0.5 rounded font-mono">previous_response_id</code>. The model remembers context without you resending history.</p>
         <DarkCode code={continueCurl} lang="bash" />
       </div>
 
@@ -376,14 +378,14 @@ const StatefulChatsGuide = () => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Streaming</h3>
-            <CopyBtn text={`curl -X POST ${BASE_URL}/v1/responses \\\n  -H "Authorization: Bearer $HATKE_API_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${streamBody}'`} label="cURL" icon={Terminal} />
+            <CopyBtn text={`curl -X POST ${BASE_URL}/api/v1/chat \\\n  -H "Authorization: Bearer $HATKE_API_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${streamBody}'`} label="cURL" icon={Terminal} />
           </div>
           <DarkCode code={streamBody} />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Stateless (store: false)</h3>
-            <CopyBtn text={`curl -X POST ${BASE_URL}/v1/responses \\\n  -H "Authorization: Bearer $HATKE_API_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${statelessBody}'`} label="cURL" icon={Terminal} />
+            <CopyBtn text={`curl -X POST ${BASE_URL}/api/v1/chat \\\n  -H "Authorization: Bearer $HATKE_API_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${statelessBody}'`} label="cURL" icon={Terminal} />
           </div>
           <DarkCode code={statelessBody} />
         </div>
@@ -512,7 +514,6 @@ const WelcomePanel = () => (
 /* ─── Main ───────────────────────────────────────────────────────────────── */
 
 const ApiDocs = () => {
-  const { models } = useModels();
   const [selected, setSelected] = useState<Selection | null>(null);
 
   const grouped = CATEGORY_ORDER.reduce<Record<string, ApiEndpoint[]>>((acc, cat) => {
