@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
-import { apiUrl, apiFetch } from "@/lib/api";
+import { useState, useCallback } from "react";
 
 export interface Model {
   id: string;
@@ -7,14 +6,13 @@ export interface Model {
   vision?: boolean;
 }
 
-const MODELS_URL = apiUrl("/v1/models");
 export const DEFAULT_MODEL_KEY = "hatke-default-model";
 export const VISION_MODEL_KEY = "hatke-vision-model";
 
-const FALLBACK_MODELS: Model[] = [
-  { id: "google/gemma-3-27b", name: "Gemma 3 27B", vision: true },
-  { id: "qwen/qwen3-vl-30b", name: "Qwen3 VL 30B", vision: true },
+const ALLOWED_MODELS: Model[] = [
   { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", vision: false },
+  { id: "openai/gpt-oss-20b", name: "GPT-OSS 20B", vision: false },
+  { id: "qwen/qwen3-vl-30b", name: "Qwen3 VL 30B", vision: true },
 ];
 
 export function getDefaultModel(): string | null {
@@ -26,53 +24,21 @@ export function setDefaultModel(modelId: string): void {
 }
 
 export function useModels(storageKey: string = DEFAULT_MODEL_KEY) {
-  const [models, setModels] = useState<Model[]>(FALLBACK_MODELS);
+  const [models] = useState<Model[]>(ALLOWED_MODELS);
   const [selectedModel, setSelectedModelState] = useState<string>(() => {
-    return localStorage.getItem(storageKey) || FALLBACK_MODELS[0].id;
+    const stored = localStorage.getItem(storageKey);
+    if (stored && ALLOWED_MODELS.some(m => m.id === stored)) {
+      return stored;
+    }
+    localStorage.setItem(storageKey, ALLOWED_MODELS[0].id);
+    return ALLOWED_MODELS[0].id;
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
   const setSelectedModel = useCallback((modelId: string) => {
     setSelectedModelState(modelId);
     localStorage.setItem(storageKey, modelId);
-  }, [storageKey]);
-
-  useEffect(() => {
-    setError(null);
-    apiFetch(MODELS_URL)
-      .then((res) => {
-        if (res.status === 403) {
-          throw new Error("IP_NOT_WHITELISTED");
-        }
-        if (!res.ok) throw new Error("API error");
-        return res.json();
-      })
-      .then((data) => {
-        const list: Model[] = (data.data || data || []).map((m: any) => ({
-          id: m.id || m.model || String(m),
-          name: m.displayName || m.name || m.id || m.model || String(m),
-          vision: m.vision || false,
-        }));
-        if (list.length > 0) {
-          setModels(list);
-          const storedDefault = localStorage.getItem(storageKey);
-          if (storedDefault && list.some(m => m.id === storedDefault)) {
-            setSelectedModelState(storedDefault);
-          } else {
-            setSelectedModelState(list[0].id);
-            localStorage.setItem(storageKey, list[0].id);
-          }
-        }
-      })
-      .catch((err) => {
-        if (err.message === "IP_NOT_WHITELISTED") {
-          setError("Your IP address is not whitelisted. Please contact the administrator to whitelist your IP.");
-        } else {
-          setError(err.message);
-        }
-      })
-      .finally(() => setLoading(false));
   }, [storageKey]);
 
   return { models, selectedModel, setSelectedModel, loading, error };

@@ -169,7 +169,7 @@ const FilePlayground = () => {
 
   return (
     <div className="flex flex-col h-full items-center">
-      <div className="w-full shrink-0 flex justify-center py-3 sm:py-4 border-b border-border/50 bg-background/20 backdrop-blur-xl sticky top-0 z-50">
+      <div className="w-full shrink-0 flex flex-col items-center py-3 sm:py-4 border-b border-border/50 bg-background/20 backdrop-blur-xl sticky top-0 z-50">
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowModelDropdown(!showModelDropdown)}
@@ -200,6 +200,9 @@ const FilePlayground = () => {
             </div>
           )}
         </div>
+        <p className="text-[11px] text-primary/80 text-center mt-1.5">
+          Only GPT-OSS 120B, GPT-OSS 20B and Qwen3 VL 30B are available on the Hatke AI UI. Use the API directly for other models.
+        </p>
       </div>
 
       <div className="flex-1 w-full max-w-[640px] px-3 sm:px-4 py-4 sm:py-8 overflow-y-auto min-h-0 scroll-smooth">

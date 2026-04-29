@@ -151,6 +151,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onOpenChange }) =
                   <div>
                     <p className="text-[14px] text-foreground">Default model</p>
                     <p className="text-[12px] text-muted-foreground">Used in chat &amp; file upload</p>
+                    <p className="text-[11px] text-primary mt-1">
+                      Only GPT-OSS 120B, GPT-OSS 20B and Qwen3 VL 30B are available on the Hatke AI UI. Use the API directly for other models.
+                    </p>
                   </div>
                   <div className="relative" ref={modelDropdownRef}>
                     <button

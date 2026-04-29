@@ -303,7 +303,7 @@ const ChatPlayground = () => {
       </div>
 
       {/* Top bar: model selector only */}
-      <div className="flex items-center justify-center sm:justify-start pt-2 pb-1 sm:pt-4 px-3 sm:px-4 z-50 relative shrink-0">
+      <div className="flex flex-col items-center sm:items-start pt-2 pb-1 sm:pt-4 px-3 sm:px-4 z-50 relative shrink-0">
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowModelDropdown(!showModelDropdown)}
@@ -331,6 +331,9 @@ const ChatPlayground = () => {
             </div>
           )}
         </div>
+        <p className="text-[11px] text-primary/80 text-center sm:text-left mt-1.5">
+          Only GPT-OSS 120B, GPT-OSS 20B and Qwen3 VL 30B are available on the Hatke AI UI. Use the API directly for other models.
+        </p>
         {modelsError && (
           <div className="ml-2 px-2.5 py-1 bg-destructive/10 border border-destructive/20 rounded-full">
             <span className="text-[11px] text-destructive">{modelsError}</span>
