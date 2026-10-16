@@ -33,6 +33,55 @@ const BASE_URL = "https://ail.buyhatke.com";
 
 const endpoints: ApiEndpoint[] = [
   {
+    id: "opencode-chat",
+    method: "POST",
+    category: "OpenCode",
+    name: "OpenCode Chat",
+    path: "/v1/opencode/chat/completions",
+    description: "Free OpenCode models through an OpenAI-compatible chat API, with no API key needed. model is optional and defaults to deepseek-v4.1-flash-free, the fastest. Short names also work: deepseek, glm. Supports stream: true. If you don't pin a model and the default stalls, the request falls back to glm-5.3-flash-free. The x-opencode-model response header says which model answered.",
+    headers: { Authorization: "Bearer $HATKE_API_TOKEN", "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "deepseek-v4.1-flash-free", messages: [{ role: "user", content: "Capital of Japan? One word." }] }, null, 2),
+    response: JSON.stringify({ id: "chatcmpl-…", object: "chat.completion", model: "deepseek-v4.1-flash-free", choices: [{ index: 0, message: { role: "assistant", content: "Tokyo" }, finish_reason: "stop" }], usage: { prompt_tokens: 14012, completion_tokens: 2, total_tokens: 14014 } }, null, 2),
+    examples: [
+      { label: "With an image (data URL or https URL)", body: JSON.stringify({ model: "deepseek-v4.1-flash-free", messages: [{ role: "user", content: [{ type: "text", text: "What is in this image?" }, { type: "image_url", image_url: { url: "https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg" } }] }] }, null, 2) },
+      { label: "Streaming", body: JSON.stringify({ messages: [{ role: "user", content: "Write a haiku about speed." }], stream: true }, null, 2) },
+      { label: "More reasoning (slower)", body: JSON.stringify({ model: "deepseek-v4.1-flash-free", reasoning_effort: "high", messages: [{ role: "user", content: "Is 1001 prime? Explain briefly." }] }, null, 2) },
+    ],
+  },
+  {
+    id: "opencode-batch",
+    method: "POST",
+    category: "OpenCode",
+    name: "OpenCode Batch",
+    path: "/v1/opencode/batch",
+    description: "Run up to 200 prompts in parallel with a single request. Each item can be a string, an object like { prompt, image }, or { messages }. Results come back in the same order as the items, each with ok: true or false.",
+    headers: { Authorization: "Bearer $HATKE_API_TOKEN", "Content-Type": "application/json" },
+    body: JSON.stringify({ system: "Reply with one word.", items: ["Color of the sky?", { prompt: "Which brand is this?", image: "data:image/png;base64,iVBORw0KGgo..." }, "Opposite of hot?"] }, null, 2),
+    response: JSON.stringify({ object: "batch", count: 3, ok: 3, ms: 1930, results: [{ index: 0, ok: true, model: "deepseek-v4.1-flash-free", content: "Blue" }, { index: 1, ok: true, model: "deepseek-v4.1-flash-free", content: "Google" }, { index: 2, ok: true, model: "deepseek-v4.1-flash-free", content: "Cold" }] }, null, 2),
+  },
+  {
+    id: "opencode-models",
+    method: "GET",
+    category: "OpenCode",
+    name: "OpenCode Models",
+    path: "/v1/opencode/models",
+    description: "Lists the free OpenCode models. For each one, image says whether it accepts images and variants lists the reasoning_effort values it allows.",
+    headers: { Authorization: "Bearer $HATKE_API_TOKEN" },
+    body: "// No request body required (GET request)",
+    response: JSON.stringify({ object: "list", default: "deepseek-v4.1-flash-free", data: [{ id: "deepseek-v4.1-flash-free", opencode: { image: true, variants: ["low", "high", "max"], context: 200000 } }, { id: "glm-5.3-flash-free", opencode: { image: true, variants: ["low", "high", "max"], context: 200000 } }] }, null, 2),
+  },
+  {
+    id: "opencode-health",
+    method: "GET",
+    category: "OpenCode",
+    name: "OpenCode Health",
+    path: "/v1/opencode/health",
+    description: "Shows whether the OpenCode backend is up, its version, and how many requests are in flight or queued.",
+    headers: { Authorization: "Bearer $HATKE_API_TOKEN" },
+    body: "// No request body required (GET request)",
+    response: JSON.stringify({ ok: true, version: "1.18.35", default_model: "deepseek-v4.1-flash-free", fallback_models: ["glm-5.3-flash-free", "mimo-v2.6-flash-free"], active: 0, queued: 0, concurrency: 8 }, null, 2),
+  },
+  {
     id: "models",
     method: "GET",
     category: "Models",
@@ -129,7 +178,7 @@ const endpoints: ApiEndpoint[] = [
   },
 ];
 
-const CATEGORY_ORDER = ["Models", "Chat", "Vision", "Files", "Audio"];
+const CATEGORY_ORDER = ["OpenCode", "Models", "Chat", "Vision", "Files", "Audio"];
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
