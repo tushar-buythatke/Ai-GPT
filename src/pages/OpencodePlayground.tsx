@@ -54,6 +54,8 @@ interface Settings {
 
 const DEFAULT_MODEL = "deepseek-v4.1-flash-free";
 const PREFERRED = [DEFAULT_MODEL, "glm-5.3-flash-free", "mimo-v2.6-flash-free"];
+// Some bridge builds report these as text-only; they do read images.
+const KNOWN_VISION = new Set(PREFERRED);
 const MAX_IMAGES = 4;
 const SETTINGS_KEY = "hatke-opencode-settings";
 const PUBLIC_BASE = API_BASE_URL.startsWith("http") ? API_BASE_URL.replace(/\/$/, "") : "https://ail.buyhatke.com";
@@ -487,7 +489,7 @@ const OpencodePlayground = () => {
       .then((d) => {
         const list: OcModel[] = (d.data || []).map((m: { id: string; opencode?: Record<string, unknown> }) => {
           const o = (m.opencode || {}) as { name?: string; image?: boolean; input?: string[]; variants?: string[]; context?: number };
-          return { id: m.id, name: o.name || m.id, image: o.image ?? Boolean(o.input?.includes("image")), variants: o.variants || [], context: o.context };
+          return { id: m.id, name: o.name || m.id, image: KNOWN_VISION.has(m.id) || (o.image ?? Boolean(o.input?.includes("image"))), variants: o.variants || [], context: o.context };
         });
         list.sort((a, b) => {
           const ia = PREFERRED.indexOf(a.id), ib = PREFERRED.indexOf(b.id);
@@ -525,7 +527,7 @@ const OpencodePlayground = () => {
   }, [models]);
 
   const current = models.find((m) => m.id === settings.model);
-  const imagesBlocked = images.length > 0 && current && !current.image;
+  const imageWarning = images.length > 0 && current && !current.image;
   const panelVisible = wide ? settings.panel : overlay;
   const togglePanel = () => (wide ? set({ panel: !settings.panel }) : setOverlay((v) => !v));
 
@@ -629,7 +631,7 @@ const OpencodePlayground = () => {
 
   const send = () => {
     const text = prompt.trim();
-    if (!text || busy || imagesBlocked) return;
+    if (!text || busy) return;
     const history = [...turns.filter((t) => !t.error), { role: "user" as const, text, images: images.length ? images : undefined }];
     setPrompt("");
     setImages([]);
@@ -783,7 +785,7 @@ const OpencodePlayground = () => {
         <div className="shrink-0 px-4 sm:px-6 pb-4 pt-2">
           <div className={cn(
             "max-w-[740px] mx-auto rounded-2xl border bg-card shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] transition-colors",
-            imagesBlocked ? "border-destructive/50" : "border-border focus-within:border-primary/50"
+            imageWarning ? "border-amber-500/50" : "border-border focus-within:border-primary/50"
           )}>
             {images.length > 0 && (
               <div className="px-3 pt-3 flex flex-wrap gap-2">
@@ -801,8 +803,10 @@ const OpencodePlayground = () => {
                 ))}
               </div>
             )}
-            {imagesBlocked && current && (
-              <p className="px-4 pt-2 text-[12px] text-destructive">{cleanName(current.name, current.id)} can't read images. Switch to DeepSeek V4.1 Flash, or remove the image.</p>
+            {imageWarning && current && (
+              <p className="px-4 pt-2 text-[12px] text-amber-500">
+                {cleanName(current.name, current.id)} may ignore images.{current.id !== DEFAULT_MODEL && " DeepSeek V4.1 Flash reads them."}
+              </p>
             )}
             <textarea
               ref={inputRef}
@@ -845,7 +849,7 @@ const OpencodePlayground = () => {
                 ) : (
                   <button
                     onClick={send}
-                    disabled={!prompt.trim() || Boolean(imagesBlocked)}
+                    disabled={!prompt.trim()}
                     className="h-8 w-8 rounded-lg bg-primary text-primary-foreground inline-flex items-center justify-center disabled:opacity-30 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="Send"
                   >
