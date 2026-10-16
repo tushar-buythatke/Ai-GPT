@@ -19,6 +19,7 @@ const VisionPlayground = lazy(() => import("@/pages/VisionPlayground"));
 const ImageUrlPlayground = lazy(() => import("@/pages/ImageUrlPlayground"));
 const FilePlayground = lazy(() => import("@/pages/FilePlayground"));
 const VoicePlayground = lazy(() => import("@/pages/VoicePlayground"));
+const OpencodePlayground = lazy(() => import("@/pages/OpencodePlayground"));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[200px]">
@@ -46,6 +47,7 @@ const App = () => (
                 <Route element={<DashboardLayout />}>
                   <Route path="/" element={<Suspense fallback={<PageLoader />}><ChatPlayground /></Suspense>} />
                   <Route path="/chat/:chatId" element={<Suspense fallback={<PageLoader />}><ChatPlayground /></Suspense>} />
+                  <Route path="/opencode" element={<Suspense fallback={<PageLoader />}><OpencodePlayground /></Suspense>} />
                   <Route path="/vision" element={<Suspense fallback={<PageLoader />}><VisionPlayground /></Suspense>} />
                   <Route path="/image-url" element={<Suspense fallback={<PageLoader />}><ImageUrlPlayground /></Suspense>} />
                   <Route path="/file-upload" element={<Suspense fallback={<PageLoader />}><FilePlayground /></Suspense>} />

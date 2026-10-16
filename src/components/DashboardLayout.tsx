@@ -33,9 +33,11 @@ import {
   FileUp,
   Mic,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 
 const navItems = [
+  { to: "/opencode", icon: Sparkles, label: "OpenCode" },
   { to: "/vision", icon: Eye, label: "Vision" },
   { to: "/image-url", icon: ImageIcon, label: "Image URL" },
   { to: "/file-upload", icon: FileUp, label: "File Upload" },
